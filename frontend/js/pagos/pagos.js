@@ -86,92 +86,95 @@ export function initPagos(eventBus, context) {
     const elements = stripe.elements();
 
     const elementStyle = {
-                base: {
-                    color: '#f0e2c8',
-                    fontFamily: 'system-ui, sans-serif',
-                    fontSize: '14px',
-                    '::placeholder': { color: '#a08668' },
-                    iconColor: '#e8a83e'
-                },
-                invalid: {
-                    color: '#e8703e',
-                    iconColor: '#e8703e'
-                }
-};
+        base: {
+            color: '#f0e2c8',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: '14px',
+            '::placeholder': { color: '#a08668' },
+            iconColor: '#e8a83e'
+        },
+        invalid: {
+            color: '#e8703e',
+            iconColor: '#e8703e'
+        }
+    };
 
-// Crear campos separados con el estilo visual oscuro de Pupusa Lab
-const cardNumber = elements.create('cardNumber', { style: elementStyle, showIcon: true });
-const cardExpiry = elements.create('cardExpiry', { style: elementStyle });
-const cardCvc = elements.create('cardCvc', { style: elementStyle });
+    // Crear campos separados con el estilo visual oscuro de Pupusa Lab
+    const cardNumber = elements.create('cardNumber', { style: elementStyle, showIcon: true });
+    const cardExpiry = elements.create('cardExpiry', { style: elementStyle });
+    const cardCvc = elements.create('cardCvc', { style: elementStyle });
 
-cardNumber.mount('#card-number-element');
-cardExpiry.mount('#card-expiry-element');
-cardCvc.mount('#card-cvc-element');
+    cardNumber.mount('#card-number-element');
+    cardExpiry.mount('#card-expiry-element');
+    cardCvc.mount('#card-cvc-element');
 
-const handleCardChange = (event) => {
-    errorEl.textContent = event.error ? event.error.message : '';
-};
-cardNumber.on('change', handleCardChange);
-cardExpiry.on('change', handleCardChange);
-cardCvc.on('change', handleCardChange);
+    const handleCardChange = (event) => {
+        errorEl.textContent = event.error ? event.error.message : '';
+    };
+    cardNumber.on('change', handleCardChange);
+    cardExpiry.on('change', handleCardChange);
+    cardCvc.on('change', handleCardChange);
 
-// Mostrar el modal cuando el usuario da clic en "Completar pedido"
-context.completeBtn.addEventListener('click', () => {
-    const total = context.computeServedTotal();
-    if (total <= 0) return;
-    totalEl.textContent = `$${total.toFixed(2)}`;
-    modal.classList.add('active');
-});
-
-cancelBtn.addEventListener('click', () => {
-    modal.classList.remove('active');
-    errorEl.textContent = '';
-});
-
-submitBtn.addEventListener('click', async () => {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Procesando...';
-    errorEl.textContent = '';
-
-    try {
+    // Mostrar el modal cuando el usuario da clic en "Completar pedido"
+    context.completeBtn.addEventListener('click', () => {
         const total = context.computeServedTotal();
+        if (total <= 0) return;
+        totalEl.textContent = `$${total.toFixed(2)}`;
+        modal.classList.add('active');
+    });
 
-        // 1. Obtener el clientSecret del Backend (Facade)
-        const res = await fetch('http://localhost:3000/api/pagos/crear-intento', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ monto: total, moneda: 'usd' })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error de red');
+    cancelBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+        errorEl.textContent = '';
+    });
 
-        // 2. Confirmar la tarjeta con Stripe
-        const postalCode = postalInput ? postalInput.value.trim() : '';
-        const paymentMethod = { card: cardNumber };
-        if (postalCode) {
-            paymentMethod.billing_details = { address: { postal_code: postalCode } };
-        }
+    submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Procesando...';
+        errorEl.textContent = '';
 
-        const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
+        try {
+            const total = context.computeServedTotal();
+
+            // 1. Obtener el clientSecret del Backend (Facade)
+            const API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                ? 'http://localhost:3000'
+                : 'https://pupusa-lab-backend.onrender.com';
+            const res = await fetch(`${API_URL}/api/pagos/crear-intento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ monto: total, moneda: 'usd' })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error de red');
+
+            // 2. Confirmar la tarjeta con Stripe
+            const postalCode = postalInput ? postalInput.value.trim() : '';
+            const paymentMethod = { card: cardNumber };
+            if (postalCode) {
+                paymentMethod.billing_details = { address: { postal_code: postalCode } };
+            }
+
+            const { error, paymentIntent } = await stripe.confirmCardPayment(data.clientSecret, {
                 payment_method: paymentMethod
-        });
+            });
 
-        if (error) {
-            throw error;
-        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            // 3. Notificar al sistema que el pago fue exitoso (Observer)
-            modal.classList.remove('active');
-            cardNumber.clear();
-            cardExpiry.clear();
-            cardCvc.clear();
-            if (postalInput) postalInput.value = '';
-            eventBus.emit('pago:exitoso', { total });
+            if (error) {
+                throw error;
+            } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+                // 3. Notificar al sistema que el pago fue exitoso (Observer)
+                modal.classList.remove('active');
+                cardNumber.clear();
+                cardExpiry.clear();
+                cardCvc.clear();
+                if (postalInput) postalInput.value = '';
+                eventBus.emit('pago:exitoso', { total });
+            }
+        } catch (err) {
+            errorEl.textContent = err.message;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Confirmar y Pagar';
         }
-    } catch (err) {
-        errorEl.textContent = err.message;
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Confirmar y Pagar';
-    }
-});
+    });
 }
