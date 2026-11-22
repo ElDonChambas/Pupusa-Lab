@@ -1,0 +1,2980 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
+  <title>Pupusa Lab · Cocina + Plato v12</title>
+  <style>
+    :root {
+      --bg: #0d0704;
+      --fg: #f0e2c8;
+      --muted: #a08668;
+      --accent: #e8a83e;
+      --accent-2: #7ba05b;
+      --price: #ffd98a;
+      --success: #7ba05b;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden
+    }
+
+    body {
+      background: radial-gradient(ellipse at 50% 0%, #2a160a 0%, #0d0704 70%), var(--bg);
+      color: var(--fg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      user-select: none
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      height: 100vh;
+      height: 100dvh
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 50%, rgba(60, 35, 18, .5) 0%, transparent 60%), repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 2px, transparent 2px 90px), repeating-linear-gradient(0deg, rgba(255, 200, 140, .03) 0 1px, transparent 1px 60px)
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, .5) 100%), radial-gradient(ellipse at 50% 100%, rgba(80, 40, 15, .35), transparent 70%);
+      pointer-events: none;
+      z-index: 1
+    }
+
+    #threeCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+      position: relative;
+      z-index: 0
+    }
+
+    #threeCanvas:active {
+      cursor: grabbing
+    }
+
+    .hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+      font-size: 11px;
+      letter-spacing: .08em;
+      z-index: 10
+    }
+
+    .chip {
+      background: rgba(10, 6, 3, .7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, .08);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      color: var(--fg)
+    }
+
+    .chip b {
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    .chip.green b {
+      color: var(--accent-2)
+    }
+
+    .chip.orange b {
+      color: #e8703e
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      letter-spacing: .28em;
+      text-transform: uppercase;
+      color: rgba(240, 226, 200, .4);
+      pointer-events: none;
+      text-align: center;
+      transition: opacity .4s;
+      max-width: 80%;
+      z-index: 10
+    }
+
+    .hint.hide {
+      opacity: 0
+    }
+
+    .view-controls {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 20
+    }
+
+    .cam-controls {
+      position: absolute;
+      bottom: 52px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 20
+    }
+
+    .view-controls button,
+    .cam-controls button {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(10, 6, 3, .75);
+      backdrop-filter: blur(8px);
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .2s;
+      font-family: inherit
+    }
+
+    .view-controls button:hover,
+    .cam-controls button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(232, 168, 62, .15)
+    }
+
+    .view-controls button.active {
+      background: rgba(232, 168, 62, .25);
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    /* ── SIDEBAR ── */
+    aside {
+      border-left: 1px solid rgba(255, 255, 255, .06);
+      background: linear-gradient(180deg, rgba(30, 18, 10, .6), rgba(10, 6, 3, .9));
+      display: flex;
+      flex-direction: column;
+      padding: 14px 12px;
+      gap: 10px;
+      overflow-y: auto
+    }
+
+    aside h1 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--accent)
+    }
+
+    aside .sub {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0
+    }
+
+    /* Acordeones */
+    .panel-group {
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 12px;
+      background: rgba(255, 240, 210, .02);
+      overflow: hidden;
+      transition: border-color .2s
+    }
+
+    .panel-group[open] {
+      border-color: rgba(232, 168, 62, .28)
+    }
+
+    .panel-group>summary {
+      cursor: pointer;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 240, 210, .04);
+      list-style: none;
+      user-select: none;
+      transition: background .2s;
+      font-size: 11px;
+      letter-spacing: .08em
+    }
+
+    .panel-group>summary:hover {
+      background: rgba(255, 240, 210, .07)
+    }
+
+    .panel-group>summary::-webkit-details-marker {
+      display: none
+    }
+
+    .panel-group>summary::after {
+      content: '▾';
+      margin-left: auto;
+      transition: transform .25s cubic-bezier(.4, 0, .2, 1);
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .panel-group[open]>summary::after {
+      transform: rotate(180deg);
+      color: var(--accent)
+    }
+
+    .summary-icon {
+      font-size: 16px;
+      line-height: 1
+    }
+
+    .summary-text {
+      flex: 1;
+      font-weight: 600;
+      color: var(--fg);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-size: 10px
+    }
+
+    .summary-badge {
+      background: rgba(232, 168, 62, .18);
+      border: 1px solid rgba(232, 168, 62, .42);
+      color: var(--accent);
+      font-family: ui-monospace, monospace;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+      min-width: 16px;
+      text-align: center
+    }
+
+    .summary-badge.empty {
+      opacity: .35
+    }
+
+    .group-content {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-top: 1px solid rgba(255, 255, 255, .04)
+    }
+
+    .group-content h3 {
+      margin: 0;
+      font-size: 9px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600
+    }
+
+    /* E-commerce */
+    .ecommerce {
+      display: flex;
+      flex-direction: column;
+      gap: 10px
+    }
+
+    .size-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px
+    }
+
+    .size-btn {
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: .06em;
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(0, 0, 0, .3);
+      color: var(--fg);
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      line-height: 1.2
+    }
+
+    .size-btn strong {
+      font-size: 10px;
+      font-weight: 600
+    }
+
+    .size-btn span {
+      font-family: ui-monospace, monospace;
+      color: var(--price);
+      font-size: 10px
+    }
+
+    .size-btn:hover {
+      border-color: rgba(232, 168, 62, .5)
+    }
+
+    .size-btn.active {
+      background: linear-gradient(180deg, rgba(232, 168, 62, .25), rgba(232, 168, 62, .10));
+      border-color: rgba(232, 168, 62, .75);
+      box-shadow: 0 4px 14px rgba(232, 168, 62, .20)
+    }
+
+    .qty-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px
+    }
+
+    .qty-row label {
+      font-size: 10px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted)
+    }
+
+    .qty-ctrl {
+      display: flex;
+      align-items: center;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, .3)
+    }
+
+    .qty-ctrl button {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 16px;
+      font-family: inherit;
+      transition: background .15s
+    }
+
+    .qty-ctrl button:hover {
+      background: rgba(232, 168, 62, .18);
+      color: var(--accent)
+    }
+
+    .qty-ctrl input {
+      width: 42px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--fg);
+      text-align: center;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      font-weight: 600
+    }
+
+    .qty-ctrl input:focus {
+      outline: none;
+      background: rgba(232, 168, 62, .10)
+    }
+
+    .rack {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px
+    }
+
+    .ingredient {
+      position: relative;
+      background: rgba(255, 240, 210, .04);
+      border: 1px solid rgba(255, 240, 210, .10);
+      border-radius: 12px;
+      padding: 8px 6px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      cursor: grab;
+      touch-action: none;
+      transition: transform .18s cubic-bezier(.4, 0, .2, 1), background .2s, border-color .2s, box-shadow .2s;
+      font-family: inherit;
+      color: var(--fg);
+      font-size: 10px;
+      letter-spacing: .05em
+    }
+
+    .ingredient:active {
+      cursor: grabbing
+    }
+
+    .ingredient:hover {
+      background: rgba(255, 240, 210, .08);
+      border-color: rgba(232, 168, 62, .5);
+      box-shadow: 0 8px 22px rgba(232, 168, 62, .15);
+      transform: translateY(-2px)
+    }
+
+    .ingredient:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+      transform: none;
+      filter: grayscale(.6)
+    }
+
+    .ingredient .ico {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, .08), transparent 60%), rgba(0, 0, 0, .35);
+      border: 1px solid rgba(255, 255, 255, .05)
+    }
+
+    .ingredient .ico svg {
+      width: 82%;
+      height: 82%
+    }
+
+    .ingredient .name {
+      font-size: 9px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: rgba(240, 226, 200, .85);
+      text-align: center;
+      line-height: 1.1
+    }
+
+    .ingredient .price {
+      font-size: 9px;
+      color: var(--price);
+      font-family: ui-monospace, monospace;
+      font-weight: 600
+    }
+
+    .ingredient .count {
+      position: absolute;
+      top: 5px;
+      right: 6px;
+      font-size: 9px;
+      font-family: ui-monospace, monospace;
+      color: var(--accent);
+      background: rgba(0, 0, 0, .55);
+      padding: 1px 5px;
+      border-radius: 5px;
+      opacity: 0;
+      transform: scale(.8);
+      transition: opacity .2s, transform .2s
+    }
+
+    .ingredient .count.on {
+      opacity: 1;
+      transform: scale(1)
+    }
+
+    /* Pedido / resumen */
+    .order-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .order-summary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 220px;
+      overflow-y: auto
+    }
+
+    .order-summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 8px;
+      background: rgba(0, 0, 0, .28);
+      border-radius: 8px;
+      font-size: 10px;
+      line-height: 1.3
+    }
+
+    .order-summary-row .osr-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1
+    }
+
+    .order-summary-row .osr-left strong {
+      font-size: 10px;
+      color: var(--fg);
+      font-weight: 600
+    }
+
+    .order-summary-row .osr-left span {
+      font-size: 9px;
+      color: var(--muted);
+      word-break: break-word
+    }
+
+    .order-summary-row .osr-right {
+      font-family: ui-monospace, monospace;
+      color: var(--price);
+      font-weight: 600;
+      white-space: nowrap;
+      align-self: center
+    }
+
+    .order-summary-row.osr-free .osr-right {
+      color: var(--accent-2)
+    }
+
+    .order-summary-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, .4);
+      border-radius: 8px;
+      border: 1px solid rgba(232, 168, 62, .28)
+    }
+
+    .order-summary-total span {
+      font-size: 10px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted)
+    }
+
+    .order-summary-total strong {
+      font-family: ui-monospace, monospace;
+      font-size: 18px;
+      color: var(--price)
+    }
+
+    .order-summary-empty {
+      font-size: 10px;
+      color: var(--muted);
+      font-style: italic;
+      padding: 6px 0;
+      text-align: center
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 4px
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 11px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, .15);
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      transition: all .2s
+    }
+
+    .btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(232, 168, 62, .2) inset
+    }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: not-allowed
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, rgba(232, 168, 62, .22), rgba(232, 168, 62, .08));
+      border-color: rgba(232, 168, 62, .55);
+      color: #ffd98a
+    }
+
+    .btn.primary:hover:not(:disabled) {
+      background: linear-gradient(180deg, rgba(232, 168, 62, .32), rgba(232, 168, 62, .15));
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(232, 168, 62, .28)
+    }
+
+    .btn.primary.cooking {
+      animation: pulse .9s ease-in-out infinite
+    }
+
+    @keyframes pulse {
+      50% {
+        box-shadow: 0 0 30px rgba(232, 168, 62, .5)
+      }
+    }
+
+    .btn.serve {
+      background: linear-gradient(180deg, rgba(123, 160, 91, .28), rgba(123, 160, 91, .10));
+      border-color: rgba(123, 160, 91, .55);
+      color: #c6dfa8
+    }
+
+    .btn.serve:hover:not(:disabled) {
+      background: linear-gradient(180deg, rgba(123, 160, 91, .4), rgba(123, 160, 91, .2));
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(123, 160, 91, .3)
+    }
+
+    .btn.checkout {
+      background: linear-gradient(180deg, rgba(123, 160, 91, .4), rgba(123, 160, 91, .15));
+      border-color: rgba(123, 160, 91, .7);
+      color: #e0f0c8;
+      font-weight: 600
+    }
+
+    .btn.checkout:hover:not(:disabled) {
+      background: linear-gradient(180deg, rgba(123, 160, 91, .55), rgba(123, 160, 91, .28));
+      color: #fff
+    }
+
+    .btn.small {
+      padding: 9px 10px;
+      font-size: 10px;
+      letter-spacing: .12em
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px
+    }
+
+    .ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20, 12, 6, .85);
+      border: 1px solid rgba(232, 168, 62, .6);
+      box-shadow: 0 12px 36px rgba(232, 168, 62, .4), 0 0 0 4px rgba(232, 168, 62, .12);
+      backdrop-filter: blur(6px);
+      transform: translate(-50%, -50%);
+      animation: ghostIn .18s ease-out
+    }
+
+    .ghost svg {
+      width: 72%;
+      height: 72%
+    }
+
+    @keyframes ghostIn {
+      from {
+        transform: translate(-50%, -50%) scale(.4);
+        opacity: 0
+      }
+    }
+
+    body.dragging,
+    body.dragging .ingredient {
+      cursor: grabbing
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      padding: 16px 28px;
+      background: linear-gradient(180deg, rgba(123, 160, 91, .95), rgba(80, 110, 60, .95));
+      border: 1px solid rgba(200, 230, 160, .5);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 14px;
+      letter-spacing: .06em;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, .6), 0 0 40px rgba(123, 160, 91, .4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all .4s cubic-bezier(.4, 0, .2, 1);
+      z-index: 99999;
+      text-align: center;
+      max-width: 90vw
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0)
+    }
+
+    .toast .emoji {
+      font-size: 24px;
+      display: block;
+      margin-bottom: 4px
+    }
+
+    .toast .title {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      margin-bottom: 6px
+    }
+
+    .toast .sub {
+      font-size: 11px;
+      opacity: .9;
+      letter-spacing: .08em
+    }
+
+    @media(max-width:900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto
+      }
+
+      aside {
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, .06);
+        flex-direction: row;
+        align-items: flex-start;
+        padding: 10px;
+        gap: 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        max-height: 44vh
+      }
+
+      .panel-group {
+        flex: 0 0 260px;
+        max-height: 100%
+      }
+
+      .group-content {
+        max-height: 180px;
+        overflow-y: auto
+      }
+
+      .rack {
+        grid-template-columns: repeat(3, 1fr)
+      }
+    }
+
+    /* Estilos del Modal de Pago */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 100000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .payment-layout {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 16px;
+      width: min(94vw, 860px);
+      max-height: 92vh;
+    }
+
+    .modal-content {
+      background: linear-gradient(180deg, rgba(30, 18, 10, 0.95), rgba(10, 6, 3, 0.98));
+      border: 1px solid rgba(232, 168, 62, 0.4);
+      padding: 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+    }
+
+    .payment-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+
+    .payment-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .payment-field label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .StripeElement {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 12px 13px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .StripeElement--focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(232, 168, 62, 0.15);
+    }
+
+    .StripeElement--invalid {
+      border-color: #e8703e;
+    }
+
+    .payment-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 11px 13px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f0e2c8;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .payment-input::placeholder {
+      color: #a08668;
+    }
+
+    .payment-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(232, 168, 62, 0.15);
+    }
+
+    /* Panel desplegable de tarjetas de prueba Stripe */
+    .test-cards-panel {
+      background: linear-gradient(180deg, rgba(30, 18, 10, 0.95), rgba(10, 6, 3, 0.98));
+      border: 1px solid rgba(232, 168, 62, 0.38);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    .test-cards-panel>summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 240, 210, 0.04);
+      user-select: none;
+      transition: background .2s;
+    }
+
+    .test-cards-panel>summary:hover {
+      background: rgba(255, 240, 210, 0.08);
+    }
+
+    .test-cards-panel>summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .test-cards-panel>summary::after {
+      content: '▾';
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      transition: transform .25s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .test-cards-panel[open]>summary::after {
+      transform: rotate(180deg);
+      color: var(--accent);
+    }
+
+    .test-cards-title {
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .test-cards-note {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, 0.22);
+      line-height: 1.4;
+    }
+
+    .test-cards-body {
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(232, 168, 62, 0.4) rgba(0, 0, 0, 0.2);
+    }
+
+    .test-cards-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .test-cards-body::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 6px;
+    }
+
+    .test-cards-body::-webkit-scrollbar-thumb {
+      background: rgba(232, 168, 62, 0.38);
+      border-radius: 6px;
+    }
+
+    .test-card-item {
+      background: rgba(0, 0, 0, 0.34);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 9px 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      transition: border-color .2s;
+    }
+
+    .test-card-item:hover {
+      border-color: rgba(232, 168, 62, 0.35);
+    }
+
+    .test-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .test-card-brand {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+
+    .test-card-copy {
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(232, 168, 62, 0.4);
+      background: rgba(232, 168, 62, 0.12);
+      color: var(--price);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .test-card-copy:hover {
+      background: rgba(232, 168, 62, 0.25);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .test-card-copy.copied {
+      border-color: var(--accent-2);
+      background: rgba(123, 160, 91, 0.25);
+      color: #c6dfa8;
+    }
+
+    .test-card-num {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--price);
+      letter-spacing: 0.06em;
+    }
+
+    .test-card-meta {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media(max-width:820px) {
+      .payment-layout {
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto;
+      }
+
+      .test-cards-panel {
+        max-width: 420px;
+      }
+
+      .test-cards-body {
+        max-height: 220px;
+      }
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+  }
+}
+</script>
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+
+<body>
+  <div class="app">
+    <div class="stage">
+      <canvas id="threeCanvas"></canvas>
+      <div class="hud">
+        <span class="chip">PUPUSA·LAB v12 <b id="state">crudo</b></span>
+        <span class="chip green">plato <b id="servedCount">0</b></span>
+        <span class="chip orange">comal <b id="count">0</b></span>
+      </div>
+      <div class="hint" id="hint">Arrastra ingredientes al comal, cocínalos y sírvelos al plato</div>
+      <div class="view-controls">
+        <button id="viewComal" title="Enfocar comal">🍳</button>
+        <button id="viewPlate" title="Enfocar plato">🍽</button>
+        <button id="viewGeneral" title="Vista general" class="active">👁</button>
+        <button id="viewTop" title="Vista superior">⬆</button>
+      </div>
+      <div class="cam-controls">
+        <button id="zoomIn" title="Acercar">＋</button>
+        <button id="zoomOut" title="Alejar">−</button>
+        <button id="zoomReset" title="Restablecer">⟲</button>
+      </div>
+    </div>
+    <aside>
+      <div>
+        <h1>Pupusa Lab</h1>
+        <p class="sub">Arrastra, cocina y sirve. Personaliza tu pupusa y añade acompañamientos.</p>
+        <img src="./assets/pupusaLabLogo.png" height="70px" alt="Logo">
+      </div>
+
+      <!-- ══ Acordeón 1: Personalizar (con Cocinar + Servir) ══ -->
+      <details class="panel-group" id="groupCustomize" open>
+        <summary>
+          <span class="summary-icon">🥟</span>
+          <span class="summary-text">Personaliza</span>
+          <span class="summary-badge empty" id="badgeCustomize">0</span>
+        </summary>
+        <div class="group-content">
+          <div class="ecommerce">
+            <div class="size-row" id="sizeRow">
+              <button class="size-btn" data-size="small"><strong>Pequeña</strong><span>$0.50</span></button>
+              <button class="size-btn active" data-size="medium"><strong>Mediana</strong><span>$0.75</span></button>
+              <button class="size-btn" data-size="large"><strong>Grande</strong><span>$1.00</span></button>
+            </div>
+            <div class="qty-row">
+              <label>Cantidad</label>
+              <div class="qty-ctrl">
+                <button id="qtyMinus" type="button">−</button>
+                <input type="number" id="qtyInput" value="1" min="1" max="20" inputmode="numeric">
+                <button id="qtyPlus" type="button">+</button>
+              </div>
+            </div>
+          </div>
+          <h3>Ingredientes <span style="color:var(--price);text-transform:none;letter-spacing:.04em">($0.25 c/u)</span>
+          </h3>
+          <div class="rack" id="rack"></div>
+          <div class="btn-row">
+            <button class="btn primary small" id="cookBtn" disabled>Cocinar</button>
+            <button class="btn serve small" id="serveBtn" disabled>Servir al plato</button>
+          </div>
+          <button class="btn small" id="clearComalBtn" disabled>Limpiar comal</button>
+        </div>
+      </details>
+
+      <!-- ══ Acordeón 2: Acompañamientos ══ -->
+      <details class="panel-group" id="groupAcc">
+        <summary>
+          <span class="summary-icon">🥗</span>
+          <span class="summary-text">Acompañamientos</span>
+          <span class="summary-badge empty" id="badgeAcc">0</span>
+        </summary>
+        <div class="group-content">
+          <h3>Arrastra al plato (gratis)</h3>
+          <div class="rack" id="plateRack"></div>
+        </div>
+      </details>
+
+      <!-- ══ Acordeón 3: Pedido ══ -->
+      <details class="panel-group" id="groupOrder" open>
+        <summary>
+          <span class="summary-icon">🧾</span>
+          <span class="summary-text">Tu pedido</span>
+          <span class="summary-badge empty" id="badgeOrder">0</span>
+        </summary>
+        <div class="group-content">
+          <div class="order-summary" id="orderSummary">
+            <div class="order-summary-list" id="orderSummaryList">
+              <div class="order-summary-empty">Aún no hay pupusas en el plato</div>
+            </div>
+            <div class="order-summary-total">
+              <span>Total</span>
+              <strong id="orderSummaryTotal">$0.00</strong>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn checkout" id="completeBtn" disabled>✓ Completar pedido</button>
+            <button class="btn" id="resetBtn">Reiniciar todo</button>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <div class="modal-overlay" id="paymentModal">
+    <div class="payment-layout">
+      <div class="modal-content">
+        <h2
+          style="margin:0 0 10px 0; font-size: 16px; color:var(--accent); text-transform:uppercase; letter-spacing:0.1em;">
+          Completar Pago</h2>
+        <p style="font-size:12px; color:var(--muted); margin:0 0 10px 0">Total a pagar: <strong id="modalTotal"
+            style="color:var(--price); font-size:16px">$0.00</strong></p>
+        <div class="payment-fields">
+          <div class="payment-field">
+            <label>Número de tarjeta</label>
+            <div id="card-number-element" class="StripeElement"></div>
+          </div>
+          <div class="payment-row-2">
+            <div class="payment-field">
+              <label>Mes y año (MM / AA)</label>
+              <div id="card-expiry-element" class="StripeElement"></div>
+            </div>
+            <div class="payment-field">
+              <label>CVC</label>
+              <div id="card-cvc-element" class="StripeElement"></div>
+            </div>
+          </div>
+          <div class="payment-field">
+            <label for="card-postal-code">Código postal</label>
+            <input id="card-postal-code" class="payment-input" type="text" inputmode="text" maxlength="12"
+              autocomplete="postal-code" placeholder="Ej. 10101">
+          </div>
+        </div>
+        <div id="payment-errors" style="color:#e8703e; font-size:11px; margin-bottom:14px; min-height: 15px"></div>
+        <div class="btn-row">
+          <button class="btn" id="cancelPaymentBtn">Cancelar</button>
+          <button class="btn checkout" id="submitPaymentBtn">Confirmar y Pagar</button>
+        </div>
+      </div>
+      <details class="test-cards-panel" id="testCardsPanel" open>
+        <summary>
+          <span class="summary-icon">💳</span>
+          <span class="test-cards-title">Tarjetas de prueba Stripe</span>
+          <span class="summary-badge" id="testCardsCount">18</span>
+        </summary>
+        <div class="test-cards-note">Entorno de prueba: usa cualquiera de estas tarjetas para simular el pago (no
+          acepta tarjetas reales).</div>
+        <div class="test-cards-body" id="testCardsList"></div>
+      </details>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <span class="emoji">🎉</span>
+    <div class="title">¡Gracias por tu compra!</div>
+    <div class="sub" id="toastSub">Tu pedido ha sido registrado</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import gsap from 'gsap';
+    import { initPagos } from './js/pagos/pagos.js';
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       EVENT BUS (Observer / Pub-Sub)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    class EventBus {
+      #listeners = new Map();
+      on(event, fn) {
+        if (!this.#listeners.has(event)) this.#listeners.set(event, new Set());
+        this.#listeners.get(event).add(fn);
+        return () => this.off(event, fn);
+      }
+      off(event, fn) { this.#listeners.get(event)?.delete(fn); }
+      emit(event, payload) {
+        const set = this.#listeners.get(event);
+        if (!set) return;
+        set.forEach(fn => {
+          try { fn(payload); } catch (e) { console.error(`[EventBus:${event}]`, e); }
+        });
+      }
+    }
+    const eventBus = new EventBus();
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       DOMAIN MODELS — SOLID / POO
+       ═══════════════════════════════════════════════════════════════════════════ */
+    class ProductCatalog {
+      static SIZES = Object.freeze({
+        small: { id: 'small', label: 'Pequeña', price: 0.50, scale: 0.72 },
+        medium: { id: 'medium', label: 'Mediana', price: 0.75, scale: 1.00 },
+        large: { id: 'large', label: 'Grande', price: 1.00, scale: 1.28 }
+      });
+      static INGREDIENT_PRICE = 0.25;
+      static getSize(id) { return ProductCatalog.SIZES[id] ?? ProductCatalog.SIZES.medium; }
+      static unitPrice(sizeId, ingredientCount) {
+        return ProductCatalog.getSize(sizeId).price + ingredientCount * ProductCatalog.INGREDIENT_PRICE;
+      }
+    }
+    class OrderItem {
+      #id;
+      constructor(sizeId, ingredientIds) {
+        this.#id = `ord_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+        this.sizeId = sizeId;
+        this.ingredientIds = Object.freeze([...ingredientIds]);
+      }
+      get id() { return this.#id; }
+      get total() {
+        return ProductCatalog.unitPrice(this.sizeId, this.ingredientIds.length);
+      }
+    }
+    class Order {
+      #items = [];
+      add(item) { this.#items.push(item); eventBus.emit('order:updated', this); }
+      clear() { this.#items = []; eventBus.emit('order:updated', this); }
+      get items() { return [...this.#items]; }
+      get count() { return this.#items.length; }
+      get total() { return this.#items.reduce((s, it) => s + it.total, 0); }
+    }
+    const order = new Order();
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CONSTANTES MATEMÁTICAS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const PHI = (1 + Math.sqrt(5)) / 2;
+    const INV_PHI = 1 / PHI;
+    const GOLDEN_ANGLE = 2.399963229728653;
+    const FIB = Object.freeze([1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987]);
+    const FIB_SUM = FIB.reduce((a, b) => a + b, 0);
+    const FIB_W = FIB.map(v => v / FIB_SUM);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       DATOS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const ING = {
+      frijoles: { name: 'Frijoles', bit: 1 << 0, layer: 'base', price: 0.25, icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="22" ry="6" fill="rgba(0,0,0,.35)"/><ellipse cx="30" cy="34" rx="22" ry="13" fill="#2a1408"/><ellipse cx="22" cy="30" rx="6" ry="3" fill="#4a2410"/><ellipse cx="38" cy="34" rx="5" ry="2.6" fill="#1a0a02"/></svg>` },
+      chicharron: { name: 'Chicharrón', bit: 1 << 1, layer: 'base', price: 0.25, icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="22" ry="7" fill="rgba(0,0,0,.35)"/><path d="M12 34 Q14 22 22 20 Q26 14 34 18 Q44 16 46 26 Q52 34 42 40 Q36 46 26 44 Q14 42 12 34Z" fill="#8b4020" stroke="#4a1808" stroke-width=".8"/></svg>` },
+      revueltas: { name: 'Revueltas', bit: 1 << 2, layer: 'base', price: 0.25, icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="22" ry="7" fill="rgba(0,0,0,.35)"/><ellipse cx="22" cy="28" rx="5" ry="3" fill="#3d2010"/><ellipse cx="38" cy="26" rx="5" ry="3" fill="#f2dfa4"/><ellipse cx="30" cy="24" rx="4.5" ry="2.6" fill="#b06038"/></svg>` },
+      ayote: { name: 'Ayote', bit: 1 << 3, layer: 'base', price: 0.25, icon: `<svg viewBox="0 0 60 60"><g stroke="#7ba05b" stroke-width="2" stroke-linecap="round"><line x1="18" y1="22" x2="22" y2="30"/><line x1="26" y1="18" x2="24" y2="28"/><line x1="34" y1="20" x2="32" y2="30"/></g></svg>` },
+      queso: { name: 'Queso', bit: 1 << 4, layer: 'queso', price: 0.25, icon: `<svg viewBox="0 0 60 60"><path d="M14 38 Q10 30 18 26 Q22 18 30 22 Q40 16 44 26 Q54 30 46 40 Q44 48 34 44 Q24 50 18 42 Q12 42 14 38Z" fill="#f2dfa4" stroke="#b89850" stroke-width=".7"/></svg>` },
+      loroco: { name: 'Loroco', bit: 1 << 5, layer: 'loroco', price: 0.25, icon: `<svg viewBox="0 0 60 60"><g fill="#7ba05b" stroke="#3a5a20" stroke-width=".8"><path d="M30 12 Q34 22 30 34 Q26 22 30 12Z"/><path d="M18 20 Q24 26 22 36 Q14 30 18 20Z"/></g></svg>` }
+    };
+    const ACC = {
+      salsa: { name: 'Salsa tomate', icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="20" ry="6" fill="rgba(0,0,0,.3)"/><path d="M12 32 Q10 22 22 18 Q34 12 46 22 Q54 30 46 40 Q38 50 24 46 Q14 44 12 32Z" fill="#c83018"/></svg>` },
+      curtido: { name: 'Curtido', icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="22" ry="6" fill="rgba(0,0,0,.3)"/><path d="M10 34 Q12 22 26 20 Q40 18 50 28 Q52 40 40 44 Q26 48 14 42 Z" fill="rgba(220,230,180,.55)"/></svg>` },
+      zanahoria: { name: 'Zanahoria', icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="20" ry="6" fill="rgba(0,0,0,.3)"/><circle cx="26" cy="32" r="11" fill="#ff8020" stroke="#a05010" stroke-width=".8"/></svg>` },
+      jalapeno: { name: 'Jalapeño', icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="20" ry="6" fill="rgba(0,0,0,.3)"/><circle cx="30" cy="30" r="15" fill="none" stroke="#2a8a30" stroke-width="5"/><circle cx="30" cy="30" r="10" fill="#48a848" opacity=".85"/></svg>` },
+      cebolla: { name: 'Cebolla', icon: `<svg viewBox="0 0 60 60"><ellipse cx="30" cy="46" rx="20" ry="6" fill="rgba(0,0,0,.3)"/><path d="M14 32 Q22 22 30 32" fill="none" stroke="#f0e0e8" stroke-width="2.4" stroke-linecap="round"/><path d="M22 38 Q30 28 38 38" fill="none" stroke="#e8d0e0" stroke-width="2.4" stroke-linecap="round"/></svg>` },
+      mayonesa: { name: 'Mayonesa', icon: `<svg viewBox="0 0 60 60"><path d="M18 30 Q24 16 30 22 Q36 14 42 26 Q46 34 38 40 Q30 46 22 40 Q14 38 18 30Z" fill="#faf4e8" stroke="#c8b898" stroke-width=".8"/></svg>` },
+      salsanegra: { name: 'Salsa negra', icon: `<svg viewBox="0 0 60 60"><path d="M14 30 Q22 18 30 26 Q38 16 46 26 Q52 34 44 40 Q34 46 26 40 Q16 40 14 30Z" fill="#1a0a04" stroke="#000" stroke-width=".8"/></svg>` }
+    };
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ESTADO
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const state = {
+      ingredients: [],
+      cooked: false,
+      recipeMask: 0,
+      charSeed: 0,
+      served: [],
+      accompaniments: [],
+      firePhase: 0,
+      sizeId: 'medium',
+      quantity: 1,
+      focusedView: 'general'
+    };
+    const PUPUSA_RADIUS = 2.4;
+    const PUPUSA_HEIGHT = 0.45;
+    const PLATE_RADIUS = 4.2;
+    const MAX_BLOBS = 400;
+    /* Layout 3D: comal a la izquierda, plato a la derecha */
+    const COMAL_POS = new THREE.Vector3(-4.4, 0, 0);
+    const PLATE_POS = new THREE.Vector3(4.4, 0, 0);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       DOM REFS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const el = (id) => document.getElementById(id);
+    const rack = el('rack'), plateRack = el('plateRack'),
+      hint = el('hint'), stateEl = el('state'), countEl = el('count'),
+      servedCount = el('servedCount'),
+      cookBtn = el('cookBtn'), serveBtn = el('serveBtn'),
+      resetBtn = el('resetBtn'), completeBtn = el('completeBtn'),
+      clearComalBtn = el('clearComalBtn'),
+      badgeCustomize = el('badgeCustomize'), badgeAcc = el('badgeAcc'), badgeOrder = el('badgeOrder'),
+      orderSummaryListEl = el('orderSummaryList'),
+      orderSummaryTotalEl = el('orderSummaryTotal'),
+      sizeRow = el('sizeRow'), qtyInput = el('qtyInput'), qtyMinus = el('qtyMinus'), qtyPlus = el('qtyPlus'),
+      toast = el('toast'), toastSub = el('toastSub'),
+      canvas = el('threeCanvas');
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       UTILS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+    const rand = (seed) => { const s = Math.sin(seed * 127.1) * 43758.5453; return s - Math.floor(s); };
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       THREE.JS SETUP
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const scene = new THREE.Scene();
+    scene.background = null;
+    scene.fog = new THREE.FogExp2(0x1a0a04, 0.014);
+
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    camera.position.set(0, 8, 11);
+    camera.lookAt(0, 0.2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    const envTexture = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTexture;
+
+    /* ── Luces ── */
+    scene.add(new THREE.AmbientLight(0xfff0e0, 0.5));
+    const keyLight = new THREE.DirectionalLight(0xfff5e0, 1.9);
+    keyLight.position.set(5, 12, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 1; keyLight.shadow.camera.far = 35;
+    keyLight.shadow.camera.left = -12; keyLight.shadow.camera.right = 12;
+    keyLight.shadow.camera.top = 12; keyLight.shadow.camera.bottom = -12;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xccddff, 0.5);
+    fillLight.position.set(-6, 6, -6);
+    scene.add(fillLight);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TEXTURAS PROCEDURALES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const textureCache = new Map();
+    function createCanvasTexture(key, size, drawFn) {
+      if (textureCache.has(key)) return textureCache.get(key);
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      drawFn(ctx, size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      textureCache.set(key, tex);
+      return tex;
+    }
+
+    const clayTex = createCanvasTexture('clay', 512, (ctx, S) => {
+      const g = ctx.createRadialGradient(S * 0.42, S * 0.36, 0, S * 0.5, S * 0.5, S * 0.78);
+      g.addColorStop(0, '#d9bb90'); g.addColorStop(0.5, '#c9a87c');
+      g.addColorStop(0.85, '#b08a5c'); g.addColorStop(1, '#8a6a4a');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 140; i++) {
+        ctx.beginPath();
+        let x = Math.random() * S, y = Math.random() * S; ctx.moveTo(x, y);
+        for (let j = 0; j < 3 + Math.floor(Math.random() * 5); j++) {
+          x += (Math.random() - 0.5) * 60; y += (Math.random() - 0.5) * 60; ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(75,50,25,${Math.random() * 0.18 + 0.05})`;
+        ctx.lineWidth = Math.random() * 1.6 + 0.3; ctx.stroke();
+      }
+      for (let i = 0; i < 500; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 2 + 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(90,60,35,${Math.random() * 0.22})`; ctx.fill();
+      }
+    });
+
+    const masaTex = createCanvasTexture('masa', 512, (ctx, S) => {
+      const g = ctx.createRadialGradient(S * 0.42, S * 0.38, 0, S * 0.5, S * 0.5, S * 0.72);
+      g.addColorStop(0, '#f6e9c9'); g.addColorStop(0.55, '#ecd8ab');
+      g.addColorStop(0.88, '#d9bd86'); g.addColorStop(1, '#c1a066');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 90; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random() * S, Math.random() * S, Math.random() * 10 + 2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(160,130,80,${Math.random() * 0.08})`; ctx.fill();
+      }
+    });
+
+    const salsaTex = createCanvasTexture('salsa', 256, (ctx, S) => {
+      const g = ctx.createRadialGradient(S * 0.4, S * 0.35, 0, S * 0.5, S * 0.5, S * 0.65);
+      g.addColorStop(0, '#e84828'); g.addColorStop(0.5, '#d03820');
+      g.addColorStop(0.85, '#a82010'); g.addColorStop(1, '#8a1808');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 7; i++) {
+        const cx = S * (0.25 + rand(i) * 0.5), cy = S * (0.25 + rand(i + 100) * 0.5);
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 4; a += 0.12) {
+          const r = S * 0.03 + a * S * 0.008;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(255,140,100,${0.1 + rand(i + 200) * 0.15})`;
+        ctx.lineWidth = S * 0.014; ctx.stroke();
+      }
+      for (let i = 0; i < 18; i++) {
+        const x = rand(i + 300) * S, y = rand(i + 400) * S;
+        const r = S * (0.01 + rand(i + 500) * 0.03);
+        const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        gg.addColorStop(0, 'rgba(255,220,200,0.7)'); gg.addColorStop(1, 'rgba(255,220,200,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    const curtidoTex = createCanvasTexture('curtido', 256, (ctx, S) => {
+      ctx.fillStyle = '#e8e8c8'; ctx.fillRect(0, 0, S, S);
+      const cols = ['#f0f0e0', '#c8d8a0', '#b8c890', '#ff8020', '#e06010', '#c080c0', '#e0b0d0'];
+      for (let i = 0; i < 400; i++) {
+        const x = rand(i) * S, y = rand(i + 1000) * S;
+        const len = S * (0.04 + rand(i + 2000) * 0.10);
+        const ang = rand(i + 3000) * Math.PI * 2;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+        ctx.lineWidth = S * (0.006 + rand(i + 4000) * 0.006);
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = cols[Math.floor(rand(i + 5000) * cols.length)];
+        ctx.stroke();
+      }
+    });
+
+    const zanahoriaTex = createCanvasTexture('zanahoria', 256, (ctx, S) => {
+      ctx.fillStyle = '#ffb060'; ctx.fillRect(0, 0, S, S);
+      const cols = ['#ff8020', '#ff9030', '#e06010', '#ffa040'];
+      for (let i = 0; i < 90; i++) {
+        const x = rand(i) * S, y = rand(i + 500) * S;
+        const len = S * (0.14 + rand(i + 1000) * 0.20);
+        const ang = rand(i + 1500) * Math.PI * 2;
+        const w = S * (0.018 + rand(i + 2000) * 0.018);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.fillStyle = cols[Math.floor(rand(i + 2500) * cols.length)];
+        ctx.fillRect(-len / 2, -w / 2, len, w);
+        ctx.restore();
+      }
+    });
+
+    const jalapenoTex = createCanvasTexture('jalapeno', 256, (ctx, S) => {
+      const g = ctx.createRadialGradient(S * 0.4, S * 0.35, 0, S * 0.5, S * 0.5, S * 0.7);
+      g.addColorStop(0, '#3a9a40'); g.addColorStop(0.6, '#2a8a30'); g.addColorStop(1, '#1a6a20');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 60; i++) {
+        const x = rand(i + 100) * S, y = rand(i + 200) * S;
+        const r = S * (0.015 + rand(i + 300) * 0.025);
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = rand(i + 400) > 0.75 ? '#e8f0a0' : '#1a5a20';
+        ctx.fill();
+      }
+      for (let i = 0; i < 12; i++) {
+        const x = rand(i + 500) * S, y = rand(i + 600) * S;
+        const r = S * (0.05 + rand(i + 700) * 0.06);
+        const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        gg.addColorStop(0, 'rgba(140, 220, 140, 0.55)');
+        gg.addColorStop(1, 'rgba(140, 220, 140, 0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    const cebollaTex = createCanvasTexture('cebolla', 256, (ctx, S) => {
+      ctx.fillStyle = '#f8eef4'; ctx.fillRect(0, 0, S, S);
+      const cols = ['#c080c0', '#a060a0', '#e0b0d0', '#f0d8e4'];
+      for (let i = 0; i < 10; i++) {
+        const cx = S * (0.15 + rand(i) * 0.7), cy = S * (0.15 + rand(i + 100) * 0.7);
+        const r = S * (0.08 + rand(i + 200) * 0.10);
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = cols[Math.floor(rand(i + 300) * cols.length)];
+        ctx.lineWidth = S * 0.012; ctx.stroke();
+      }
+    });
+
+    const mayonesaTex = createCanvasTexture('mayonesa', 256, (ctx, S) => {
+      ctx.fillStyle = '#faf4e8'; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 5; i++) {
+        const cx = S * (0.3 + rand(i) * 0.4), cy = S * (0.3 + rand(i + 100) * 0.4);
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 3; a += 0.15) {
+          const r = S * 0.02 + a * S * 0.014;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(230,220,200,${0.4 + rand(i + 200) * 0.3})`;
+        ctx.lineWidth = S * 0.025; ctx.lineCap = 'round'; ctx.stroke();
+      }
+      for (let i = 0; i < 15; i++) {
+        const x = rand(i + 300) * S, y = rand(i + 400) * S;
+        const r = S * (0.015 + rand(i + 500) * 0.03);
+        const gg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    const salsanegraTex = createCanvasTexture('salsanegra', 256, (ctx, S) => {
+      const g = ctx.createRadialGradient(S * 0.4, S * 0.35, 0, S * 0.5, S * 0.5, S * 0.65);
+      g.addColorStop(0, '#3a1a08'); g.addColorStop(0.6, '#2a1004'); g.addColorStop(1, '#0a0402');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+      for (let i = 0; i < 6; i++) {
+        const cx = S * (0.3 + rand(i) * 0.4), cy = S * (0.3 + rand(i + 100) * 0.4);
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 3; a += 0.15) {
+          const r = S * 0.02 + a * S * 0.012;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(120,70,40,${0.15 + rand(i + 200) * 0.15})`;
+        ctx.lineWidth = S * 0.02; ctx.stroke();
+      }
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       COMAL GROUP (izquierda)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const comalGroup = new THREE.Group();
+    comalGroup.position.copy(COMAL_POS);
+    scene.add(comalGroup);
+
+    const comalMat = new THREE.MeshPhysicalMaterial({
+      map: clayTex, color: 0xd0b088, roughness: 0.72, metalness: 0.06,
+      clearcoat: 0.18, clearcoatRoughness: 0.55, envMapIntensity: 0.5,
+      transparent: true, opacity: 0.94
+    });
+    const comalGeo = new THREE.CylinderGeometry(3.0, 3.2, 0.35, 72, 1);
+    const comalMesh = new THREE.Mesh(comalGeo, comalMat);
+    comalMesh.position.y = -0.175;
+    comalMesh.receiveShadow = true; comalMesh.castShadow = true;
+    comalGroup.add(comalMesh);
+
+    const rimGeo = new THREE.TorusGeometry(3.05, 0.12, 20, 72);
+    const rimMat = new THREE.MeshPhysicalMaterial({ color: 0xa08058, roughness: 0.65, metalness: 0.1, clearcoat: 0.15 });
+    const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+    rimMesh.rotation.x = Math.PI / 2;
+    rimMesh.position.y = 0.05;
+    rimMesh.castShadow = true;
+    comalGroup.add(rimMesh);
+
+    /* ── Fuego (bajo el comal) ── */
+    const fireLight = new THREE.PointLight(0xff6020, 2.2, 8, 1.8);
+    fireLight.position.set(0, -0.6, 0);
+    comalGroup.add(fireLight);
+    const flameLight = new THREE.PointLight(0xffaa44, 1.4, 6, 2);
+    flameLight.position.set(0, -0.3, 0);
+    comalGroup.add(flameLight);
+
+    const fireVert = `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`;
+    const fireFrag = `
+  precision highp float;
+  uniform float uTime; uniform float uIntensity; uniform float uSeed;
+  uniform vec3 uColor1; uniform vec3 uColor2; uniform vec3 uColor3; uniform vec3 uColor4;
+  varying vec2 vUv;
+  float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123); }
+  float noise(vec2 p){
+    vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+    float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+    return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+  }
+  float fbm(vec2 p){
+    float v=0.0, a=0.5;
+    mat2 rot = mat2(0.8,0.6,-0.6,0.8);
+    for(int i=0;i<6;i++){ v += a*noise(p); p = rot*p*2.02; a *= 0.5; }
+    return v;
+  }
+  void main(){
+    vec2 uv = vUv; float t = uTime + uSeed;
+    float n1 = fbm(vec2(uv.x*3.0, uv.y*1.6 - t*1.0));
+    float n2 = fbm(vec2(uv.x*5.5 + t*0.35, uv.y*2.8 - t*1.6));
+    float n3 = fbm(vec2(uv.x*11.0 - t*0.55, uv.y*5.5 - t*2.4));
+    float n = n1*0.55 + n2*0.30 + n3*0.15;
+    float shape = pow(1.0 - uv.y, 0.55);
+    float side = 0.85 + 0.15 * sin(uv.x * 12.566);
+    float flicker = 0.82 + 0.18 * sin(t * 3.7) * cos(t * PHI_CONST);
+    float flame = shape * side * n * flicker * uIntensity * 1.7;
+    flame = smoothstep(0.18, 0.92, flame);
+    vec3 color;
+    if (flame < 0.30)      color = mix(uColor1, uColor2, flame / 0.30);
+    else if (flame < 0.62) color = mix(uColor2, uColor3, (flame-0.30)/0.32);
+    else                   color = mix(uColor3, uColor4, (flame-0.62)/0.38);
+    float core = smoothstep(0.75, 1.0, flame);
+    color = mix(color, vec3(1.0,0.98,0.9), core*0.6);
+    gl_FragColor = vec4(color, flame*0.95);
+  }
+`.replace('PHI_CONST', PHI.toFixed(4));
+    function makeFireMaterial(seed, intensity) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 }, uIntensity: { value: intensity }, uSeed: { value: seed },
+          uColor1: { value: new THREE.Color(0.85, 0.05, 0.00) },
+          uColor2: { value: new THREE.Color(1.00, 0.32, 0.00) },
+          uColor3: { value: new THREE.Color(1.00, 0.78, 0.15) },
+          uColor4: { value: new THREE.Color(1.00, 1.00, 0.88) }
+        },
+        vertexShader: fireVert, fragmentShader: fireFrag,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+      });
+    }
+    const fireMat = makeFireMaterial(Math.random() * 100, 1.0);
+    const fireGeo = new THREE.CylinderGeometry(3.15, 3.35, 1.6, 96, 1, true);
+    const fireMesh = new THREE.Mesh(fireGeo, fireMat);
+    fireMesh.position.y = -0.9;
+    comalGroup.add(fireMesh);
+    const fireMat2 = makeFireMaterial(42.7, 0.7);
+    const fireGeo2 = new THREE.CylinderGeometry(3.45, 3.6, 1.9, 96, 1, true);
+    const fireMesh2 = new THREE.Mesh(fireGeo2, fireMat2);
+    fireMesh2.position.y = -1.0;
+    comalGroup.add(fireMesh2);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PUPUSA (hija del comalGroup para que se mueva junto)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const pupusaGroup = new THREE.Group();
+    pupusaGroup.position.y = 0.05;
+    const pupusaWobbleGroup = new THREE.Group();
+    pupusaGroup.add(pupusaWobbleGroup);
+    comalGroup.add(pupusaGroup);
+
+    const activeMasaMat = new THREE.MeshStandardMaterial({
+      map: masaTex, roughness: 0.72, metalness: 0.02, envMapIntensity: 0.5
+    });
+
+    const pupusaGeo = new THREE.CylinderGeometry(PUPUSA_RADIUS, PUPUSA_RADIUS * 0.98, PUPUSA_HEIGHT, 72, 8);
+    {
+      const pos = pupusaGeo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i);
+        if (Math.abs(y) > PUPUSA_HEIGHT * 0.4) {
+          const x = pos.getX(i), z = pos.getZ(i);
+          const r = Math.sqrt(x * x + z * z);
+          if (r > PUPUSA_RADIUS * 0.95) {
+            const s = 1 - (r - PUPUSA_RADIUS * 0.95) / (PUPUSA_RADIUS * 0.05) * 0.15;
+            pos.setX(i, x * s); pos.setZ(i, z * s);
+          }
+        }
+      }
+      pupusaGeo.computeVertexNormals();
+    }
+    const pupusaMesh = new THREE.Mesh(pupusaGeo, activeMasaMat);
+    pupusaMesh.castShadow = true; pupusaMesh.receiveShadow = true;
+    pupusaMesh.position.y = PUPUSA_HEIGHT / 2;
+    pupusaWobbleGroup.add(pupusaMesh);
+
+    const fillingCanvas = document.createElement('canvas');
+    fillingCanvas.width = fillingCanvas.height = 512;
+    const fillingCtx = fillingCanvas.getContext('2d');
+    const fillingTexture = new THREE.CanvasTexture(fillingCanvas);
+    fillingTexture.colorSpace = THREE.SRGBColorSpace;
+    fillingTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const fillingGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.95, 64);
+    const fillingMat = new THREE.MeshStandardMaterial({
+      map: fillingTexture, transparent: true, opacity: 1.0,
+      roughness: 0.78, metalness: 0.02, envMapIntensity: 0.4,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+    });
+    const fillingMesh = new THREE.Mesh(fillingGeo, fillingMat);
+    fillingMesh.rotation.x = -Math.PI / 2;
+    fillingMesh.position.y = PUPUSA_HEIGHT + 0.001;
+    fillingMesh.renderOrder = 0;
+    pupusaWobbleGroup.add(fillingMesh);
+
+    const blobConfig = {
+      frijoles: { geo: () => new THREE.IcosahedronGeometry(1, 1), color: 0x3a1a0a, roughness: 0.85, metalness: 0.02, scale: 0.11, y: 0.02 },
+      chicharron: { geo: () => new THREE.DodecahedronGeometry(1, 0), color: 0x8b4020, roughness: 0.75, metalness: 0.05, scale: 0.12, y: 0.03 },
+      revueltas: { geo: () => new THREE.DodecahedronGeometry(1, 1), color: 0x8b4520, roughness: 0.80, metalness: 0.02, scale: 0.10, y: 0.03 },
+      ayote: { geo: () => new THREE.CapsuleGeometry(0.4, 1.0, 4, 6), color: 0x7ba05b, roughness: 0.70, metalness: 0.00, scale: 0.11, y: 0.02 },
+      queso: { geo: () => new THREE.SphereGeometry(1, 12, 8), color: 0xf5e6b0, roughness: 0.35, metalness: 0.00, scale: 0.14, y: 0.05 },
+      loroco: { geo: () => new THREE.ConeGeometry(0.6, 1.4, 6), color: 0x5c8038, roughness: 0.60, metalness: 0.00, scale: 0.11, y: 0.06 }
+    };
+    const blobInstances = {};
+    const _blobDummy = new THREE.Object3D();
+    function setupBlobInstances() {
+      for (const [type, cfg] of Object.entries(blobConfig)) {
+        const geo = cfg.geo();
+        const mat = new THREE.MeshStandardMaterial({
+          color: cfg.color, roughness: cfg.roughness, metalness: cfg.metalness,
+          transparent: true, opacity: 1.0, envMapIntensity: 0.4
+        });
+        const inst = new THREE.InstancedMesh(geo, mat, MAX_BLOBS);
+        inst.castShadow = true; inst.receiveShadow = true;
+        inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        inst.count = 0; inst.frustumCulled = false;
+        inst.renderOrder = 1;
+        blobInstances[type] = inst;
+        pupusaWobbleGroup.add(inst);
+      }
+    }
+    setupBlobInstances();
+
+    const topMasaMat = new THREE.MeshStandardMaterial({
+      map: masaTex, transparent: true, opacity: 0.0,
+      roughness: 0.72, metalness: 0.02, envMapIntensity: 0.5,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+    });
+    const topMasaGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.99, 64);
+    const topMasaMesh = new THREE.Mesh(topMasaGeo, topMasaMat);
+    topMasaMesh.rotation.x = -Math.PI / 2;
+    topMasaMesh.position.y = PUPUSA_HEIGHT + 0.08;
+    topMasaMesh.renderOrder = 2;
+    pupusaWobbleGroup.add(topMasaMesh);
+
+    const cookCanvas = document.createElement('canvas');
+    cookCanvas.width = cookCanvas.height = 512;
+    const cookCtx = cookCanvas.getContext('2d');
+    const cookTexture = new THREE.CanvasTexture(cookCanvas);
+    cookTexture.colorSpace = THREE.SRGBColorSpace;
+    function regenerateCookTexture(seed) {
+      cookCtx.clearRect(0, 0, 512, 512);
+      if (seed == null) return;
+      const n = 20 + Math.floor(hash(seed, 1) * 12);
+      const cx = 256, cy = 256, Rmax = 215;
+      for (let i = 0; i < n; i++) {
+        const a = hash(seed, i * 4) * Math.PI * 2;
+        const rr = hash(seed, i * 4 + 1) * Rmax;
+        const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+        const r = 8 + hash(seed, i * 4 + 2) * 26;
+        const dark = hash(seed, i * 4 + 3) > 0.55;
+        const g = cookCtx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, dark ? 'rgba(58,24,8,0.85)' : 'rgba(138,74,26,0.65)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        cookCtx.fillStyle = g;
+        cookCtx.beginPath(); cookCtx.arc(x, y, r, 0, Math.PI * 2); cookCtx.fill();
+      }
+      cookTexture.needsUpdate = true;
+    }
+    const cookOverlayMat = new THREE.MeshStandardMaterial({
+      map: cookTexture, transparent: true, opacity: 0, roughness: 0.95, metalness: 0,
+      depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3
+    });
+    const cookOverlayGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.99, 72);
+    const cookOverlayMesh = new THREE.Mesh(cookOverlayGeo, cookOverlayMat);
+    cookOverlayMesh.rotation.x = -Math.PI / 2;
+    cookOverlayMesh.position.y = PUPUSA_HEIGHT + 0.10;
+    cookOverlayMesh.renderOrder = 3;
+    pupusaWobbleGroup.add(cookOverlayMesh);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PLATO GROUP (derecha)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const plateGroup = new THREE.Group();
+    plateGroup.position.copy(PLATE_POS);
+    scene.add(plateGroup);
+
+    let plateSurfaceMesh = null;
+    {
+      const g = new THREE.CylinderGeometry(PLATE_RADIUS, PLATE_RADIUS + 0.2, 0.2, 72);
+      const m = new THREE.MeshStandardMaterial({ color: 0xf0e6d0, roughness: 0.25, metalness: 0.05, envMapIntensity: 0.6 });
+      plateSurfaceMesh = new THREE.Mesh(g, m);
+      plateSurfaceMesh.position.y = -0.1;
+      plateSurfaceMesh.receiveShadow = true;
+      plateGroup.add(plateSurfaceMesh);
+
+      const rg = new THREE.TorusGeometry(PLATE_RADIUS + 0.05, 0.1, 16, 72);
+      const rm = new THREE.MeshStandardMaterial({ color: 0xd8c6a8, roughness: 0.3, metalness: 0.1 });
+      const rim = new THREE.Mesh(rg, rm);
+      rim.rotation.x = Math.PI / 2; rim.position.y = 0.05;
+      plateGroup.add(rim);
+    }
+    const servedPupusasGroup = new THREE.Group();
+    plateGroup.add(servedPupusasGroup);
+    const accompanimentGroup = new THREE.Group();
+    plateGroup.add(accompanimentGroup);
+
+    /* Geometrías compartidas para pupusas servidas */
+    const plateTopGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.99, 48);
+    const plateCutGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.35, 24, 0, Math.PI * 1.4);
+    const plateCharGeo = new THREE.CircleGeometry(PUPUSA_RADIUS * 0.98, 48);
+    const servedMasaMat = new THREE.MeshStandardMaterial({
+      map: masaTex, roughness: 0.85, metalness: 0.02, envMapIntensity: 0.4, color: 0xc48a52
+    });
+    const servedTopMat = new THREE.MeshStandardMaterial({
+      map: masaTex, roughness: 0.82, metalness: 0.02, envMapIntensity: 0.4, color: 0xb87840
+    });
+    /* Material compartido para marcas de comal (evita 1 material por pupusa) */
+    const servedCharMat = new THREE.MeshStandardMaterial({
+      map: cookTexture, transparent: true, opacity: 0.85, roughness: 0.9, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       FILLING TEXTURE GENERATOR
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function drawFillingLayer(ctx, S, ingredients) {
+      ctx.clearRect(0, 0, S, S);
+      if (ingredients.length === 0) {
+        if (ctx === fillingCtx) fillingTexture.needsUpdate = true;
+        return;
+      }
+      const cx = S / 2, cy = S / 2;
+      const Rmax = S * 0.44;
+      const byLayer = { base: [], queso: [], loroco: [] };
+      ingredients.forEach(ing => {
+        const cfg = ING[ing.type];
+        if (cfg) byLayer[cfg.layer].push(ing);
+      });
+      const baseTypes = new Set(byLayer.base.map(i => i.type));
+      if (baseTypes.has('frijoles')) {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rmax);
+        grad.addColorStop(0, 'rgba(50, 22, 8, 0.88)');
+        grad.addColorStop(0.6, 'rgba(70, 32, 12, 0.75)');
+        grad.addColorStop(1, 'rgba(40, 16, 4, 0.35)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx, cy, Rmax, 0, Math.PI * 2); ctx.fill();
+        for (let i = 0; i < 50; i++) {
+          const a = rand(i) * Math.PI * 2, r = rand(i + 100) * Rmax;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const rr = S * 0.01 + rand(i + 200) * S * 0.03;
+          const gg = ctx.createRadialGradient(x, y, 0, x, y, rr);
+          gg.addColorStop(0, 'rgba(90, 45, 20, 0.4)'); gg.addColorStop(1, 'rgba(90,45,20,0)');
+          ctx.fillStyle = gg;
+          ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      if (baseTypes.has('chicharron')) {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rmax);
+        grad.addColorStop(0, 'rgba(139, 64, 32, 0.72)');
+        grad.addColorStop(1, 'rgba(90, 40, 18, 0.4)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx, cy, Rmax, 0, Math.PI * 2); ctx.fill();
+        const cols = ['#8b4020', '#a04a24', '#703018', '#c07040'];
+        for (let i = 0; i < 40; i++) {
+          const a = rand(i + 300) * Math.PI * 2, r = rand(i + 400) * Rmax * 0.9;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const sz = S * (0.02 + rand(i + 500) * 0.04);
+          const ang = rand(i + 600) * Math.PI * 2;
+          ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const aa = (k / 6) * Math.PI * 2, rr = sz * (0.7 + rand(i * 10 + k) * 0.5);
+            ctx[k === 0 ? 'moveTo' : 'lineTo'](Math.cos(aa) * rr, Math.sin(aa) * rr);
+          }
+          ctx.closePath();
+          ctx.fillStyle = cols[Math.floor(rand(i + 700) * cols.length)]; ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (baseTypes.has('revueltas')) {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rmax);
+        grad.addColorStop(0, 'rgba(90, 55, 30, 0.65)');
+        grad.addColorStop(1, 'rgba(60, 32, 14, 0.4)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx, cy, Rmax, 0, Math.PI * 2); ctx.fill();
+        const cols = ['#f2dfa4', '#8b4020', '#3d2010', '#5a2a15', '#b86038'];
+        for (let i = 0; i < 80; i++) {
+          const a = rand(i + 800) * Math.PI * 2, r = rand(i + 900) * Rmax * 0.9;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const sz = S * (0.008 + rand(i + 1000) * 0.018);
+          ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI * 2);
+          ctx.fillStyle = cols[Math.floor(rand(i + 1100) * cols.length)]; ctx.fill();
+        }
+      }
+      if (baseTypes.has('ayote')) {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rmax);
+        grad.addColorStop(0, 'rgba(120, 160, 90, 0.55)');
+        grad.addColorStop(1, 'rgba(90, 120, 60, 0.35)');
+        ctx.fillStyle = grad;
+        ctx.beginPath(); ctx.arc(cx, cy, Rmax, 0, Math.PI * 2); ctx.fill();
+        const cols = ['#a8c880', '#7ba05b', '#5c8038', '#8fb870'];
+        for (let i = 0; i < 220; i++) {
+          const a = rand(i + 1200) * Math.PI * 2, r = rand(i + 1300) * Rmax * 0.95;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const len = S * (0.015 + rand(i + 1400) * 0.03);
+          const ang = rand(i + 1500) * Math.PI * 2;
+          ctx.beginPath(); ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len);
+          ctx.lineWidth = S * 0.006; ctx.strokeStyle = cols[Math.floor(rand(i + 1600) * cols.length)];
+          ctx.lineCap = 'round'; ctx.stroke();
+        }
+      }
+      if (byLayer.queso.length > 0) {
+        for (let i = 0; i < 14; i++) {
+          const a = rand(i + 1700) * Math.PI * 2, r = rand(i + 1800) * Rmax * 0.85;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const sz = S * (0.04 + rand(i + 1900) * 0.05);
+          const gg = ctx.createRadialGradient(x - sz * 0.2, y - sz * 0.2, 0, x, y, sz);
+          gg.addColorStop(0, 'rgba(255, 250, 210, 0.9)');
+          gg.addColorStop(0.6, 'rgba(245, 230, 176, 0.75)');
+          gg.addColorStop(1, 'rgba(220, 200, 140, 0.3)');
+          ctx.fillStyle = gg;
+          ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      if (byLayer.loroco.length > 0) {
+        for (let i = 0; i < 30; i++) {
+          const a = rand(i + 2000) * Math.PI * 2, r = rand(i + 2100) * Rmax * 0.85;
+          const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+          const sz = S * (0.008 + rand(i + 2200) * 0.012);
+          const rot = rand(i + 2300) * Math.PI * 2;
+          ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+          ctx.fillStyle = '#5c8038';
+          ctx.beginPath(); ctx.moveTo(0, -sz);
+          ctx.bezierCurveTo(sz * 0.9, -sz * 0.6, sz * 0.7, sz * 0.3, 0, sz * 1.2);
+          ctx.bezierCurveTo(-sz * 0.7, sz * 0.3, -sz * 0.9, -sz * 0.6, 0, -sz);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(184, 216, 144, 0.6)';
+          ctx.beginPath(); ctx.moveTo(0, -sz * 0.6);
+          ctx.bezierCurveTo(sz * 0.4, -sz * 0.3, sz * 0.3, 0, 0, sz * 0.4);
+          ctx.bezierCurveTo(-sz * 0.3, 0, -sz * 0.4, -sz * 0.3, 0, -sz * 0.6);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (ctx === fillingCtx) fillingTexture.needsUpdate = true;
+    }
+
+    function rebuildIngredientBlobs() {
+      Object.values(blobInstances).forEach(inst => { inst.count = 0; });
+      const blobOpacity = state.cooked ? 0 : 1;
+      Object.values(blobInstances).forEach(inst => {
+        inst.material.opacity = blobOpacity;
+        inst.material.depthWrite = !state.cooked;
+        inst.castShadow = !state.cooked;
+        inst.visible = !state.cooked;
+        inst.scale.y = 1;
+      });
+      if (state.cooked || state.ingredients.length === 0) return;
+
+      const counters = {};
+      state.ingredients.forEach(ing => {
+        const cfg = blobConfig[ing.type];
+        const inst = blobInstances[ing.type];
+        if (!cfg || !inst) return;
+        const localX = ((ing.x - 200) / 200) * PUPUSA_RADIUS * 0.80;
+        const localZ = ((ing.y - 200) / 200) * PUPUSA_RADIUS * 0.80;
+        for (let i = 0; i < 4; i++) {
+          const idx = counters[ing.type] || 0;
+          if (idx >= MAX_BLOBS) return;
+          counters[ing.type] = idx + 1;
+          const angle = i * GOLDEN_ANGLE + ing.seed;
+          const r = hash(ing.seed, i) * 0.20;
+          const x = localX + Math.cos(angle) * r;
+          const z = localZ + Math.sin(angle) * r;
+          const y = PUPUSA_HEIGHT + cfg.y + hash(ing.seed, i + 10) * 0.03;
+          const sc = cfg.scale * (0.7 + hash(ing.seed, i + 20) * 0.6);
+          _blobDummy.position.set(x, y, z);
+          _blobDummy.rotation.set(
+            hash(ing.seed, i + 30) * Math.PI * 2,
+            hash(ing.seed, i + 40) * Math.PI * 2,
+            hash(ing.seed, i + 50) * Math.PI * 2
+          );
+          _blobDummy.scale.setScalar(sc);
+          _blobDummy.updateMatrix();
+          inst.setMatrixAt(idx, _blobDummy.matrix);
+        }
+      });
+      Object.entries(counters).forEach(([type, n]) => {
+        const inst = blobInstances[type];
+        if (inst) { inst.count = n; inst.instanceMatrix.needsUpdate = true; }
+      });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ACOMPAÑAMIENTOS — cachea geometrías por tipo para evitar allocations
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const accMatCache = {};
+    function getAccMaterial(type) {
+      if (accMatCache[type]) return accMatCache[type];
+      let mat;
+      switch (type) {
+        case 'salsa': mat = new THREE.MeshStandardMaterial({ map: salsaTex, roughness: 0.35, metalness: 0.05, envMapIntensity: 0.5 }); break;
+        case 'curtido': mat = new THREE.MeshStandardMaterial({ map: curtidoTex, roughness: 0.7 }); break;
+        case 'zanahoria': mat = new THREE.MeshStandardMaterial({ map: zanahoriaTex, roughness: 0.55 }); break;
+        case 'jalapeno': mat = new THREE.MeshStandardMaterial({ map: jalapenoTex, roughness: 0.5, side: THREE.DoubleSide }); break;
+        case 'cebolla': mat = new THREE.MeshStandardMaterial({ map: cebollaTex, roughness: 0.55, transparent: true, opacity: 0.9, side: THREE.DoubleSide }); break;
+        case 'mayonesa': mat = new THREE.MeshStandardMaterial({ map: mayonesaTex, roughness: 0.42 }); break;
+        case 'salsanegra': mat = new THREE.MeshStandardMaterial({ map: salsanegraTex, roughness: 0.3, metalness: 0.05 }); break;
+        default: mat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+      }
+      accMatCache[type] = mat;
+      return mat;
+    }
+
+    /* Geometrías base compartidas */
+    const accGeos = {
+      cylinder_small: new THREE.CylinderGeometry(0.28, 0.266, 0.10, 20),
+      curtido_base: new THREE.CylinderGeometry(0.40, 0.42, 0.10, 20),
+      curtido_top: new THREE.CylinderGeometry(0.30, 0.35, 0.08, 20),
+      curtido_tip: new THREE.ConeGeometry(0.20, 0.12, 16),
+      zanahoria: new THREE.CylinderGeometry(0.07, 0.06, 0.10, 8),
+      jalapeno: new THREE.TorusGeometry(0.12, 0.025, 8, 20),
+      cebolla: new THREE.TorusGeometry(0.13, 0.018, 6, 16, Math.PI * 1.3)
+    };
+    const ACC_GEOS_SET = new Set(Object.values(accGeos));
+
+    function buildAccompanimentMesh(type, seed) {
+      const group = new THREE.Group();
+      const mat = getAccMaterial(type);
+      switch (type) {
+        case 'salsa': {
+          const n = 3 + Math.floor(rand(seed) * 2);
+          for (let i = 0; i < n; i++) {
+            const m = new THREE.Mesh(accGeos.cylinder_small, mat);
+            const sc = 0.9 + rand(seed + i) * 0.4;
+            m.scale.setScalar(sc);
+            const a = rand(seed + i + 50) * Math.PI * 2;
+            const rr = i === 0 ? 0 : 0.20 + rand(seed + i + 60) * 0.15;
+            m.position.set(Math.cos(a) * rr, 0.05, Math.sin(a) * rr);
+            m.castShadow = true; m.receiveShadow = true;
+            group.add(m);
+          }
+          break;
+        }
+        case 'curtido': {
+          const base = new THREE.Mesh(accGeos.curtido_base, mat);
+          base.castShadow = true; base.receiveShadow = true;
+          group.add(base);
+          const top = new THREE.Mesh(accGeos.curtido_top, mat);
+          top.position.y = 0.09; top.castShadow = true;
+          group.add(top);
+          const tip = new THREE.Mesh(accGeos.curtido_tip, mat);
+          tip.position.y = 0.18; tip.castShadow = true;
+          group.add(tip);
+          break;
+        }
+        case 'zanahoria': {
+          for (let i = 0; i < 6; i++) {
+            const m = new THREE.Mesh(accGeos.zanahoria, mat);
+            const a = rand(seed + i + 200) * Math.PI * 2;
+            const rr = 0.10 + rand(seed + i + 300) * 0.20;
+            m.position.set(Math.cos(a) * rr, 0.05, Math.sin(a) * rr);
+            m.rotation.set(rand(seed + i + 400) * 0.4, rand(seed + i + 500) * Math.PI * 2, rand(seed + i + 600) * 0.4);
+            m.castShadow = true; group.add(m);
+          }
+          break;
+        }
+        case 'jalapeno': {
+          for (let i = 0; i < 4; i++) {
+            const m = new THREE.Mesh(accGeos.jalapeno, mat);
+            const sc = 0.85 + rand(seed + i) * 0.4;
+            m.scale.setScalar(sc);
+            const a = rand(seed + i + 100) * Math.PI * 2;
+            const rr = 0.08 + rand(seed + i + 200) * 0.18;
+            m.position.set(Math.cos(a) * rr, 0.05, Math.sin(a) * rr);
+            m.rotation.x = Math.PI / 2;
+            m.rotation.z = rand(seed + i + 300) * Math.PI;
+            m.castShadow = true; group.add(m);
+          }
+          break;
+        }
+        case 'cebolla': {
+          for (let i = 0; i < 5; i++) {
+            const m = new THREE.Mesh(accGeos.cebolla, mat);
+            const a = rand(seed + i + 100) * Math.PI * 2;
+            const rr = 0.08 + rand(seed + i + 200) * 0.22;
+            m.position.set(Math.cos(a) * rr, 0.04, Math.sin(a) * rr);
+            m.rotation.x = Math.PI / 2 + (rand(seed + i + 300) - 0.5) * 0.4;
+            m.rotation.z = rand(seed + i + 400) * Math.PI * 2;
+            m.castShadow = true; group.add(m);
+          }
+          break;
+        }
+        case 'mayonesa':
+        case 'salsanegra': {
+          const points = [];
+          const turns = type === 'mayonesa' ? 3 + rand(seed) * 1.5 : 2 + rand(seed) * 1.2;
+          const maxR = type === 'mayonesa' ? 0.25 + rand(seed + 50) * 0.10 : 0.28 + rand(seed + 50) * 0.08;
+          const tubeR = type === 'mayonesa' ? 0.035 : 0.028;
+          for (let i = 0; i <= 55; i++) {
+            const t = i / 55, a = t * Math.PI * 2 * turns, r = t * maxR;
+            points.push(new THREE.Vector3(Math.cos(a) * r, 0.04, Math.sin(a) * r));
+          }
+          const curve = new THREE.CatmullRomCurve3(points);
+          const geo = new THREE.TubeGeometry(curve, 44, tubeR, 8, false);
+          const m = new THREE.Mesh(geo, mat);
+          m.castShadow = true; group.add(m);
+          break;
+        }
+      }
+      return group;
+    }
+
+    function renderAccompaniments3D() {
+      while (accompanimentGroup.children.length > 0) {
+        const c = accompanimentGroup.children[0];
+        accompanimentGroup.remove(c);
+        c.traverse(o => {
+          if (o.geometry && !ACC_GEOS_SET.has(o.geometry)) o.geometry.dispose();
+        });
+      }
+      for (const a of state.accompaniments) {
+        const group = buildAccompanimentMesh(a.type, a.seed);
+        const x = (a.x - 200) / 200 * PLATE_RADIUS * 0.82;
+        const z = (a.y - 200) / 200 * PLATE_RADIUS * 0.82;
+        group.position.set(x, 0, z);
+        group.rotation.y = a.seed * 6.28;
+        accompanimentGroup.add(group);
+      }
+      requestRender();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ORBIT CONTROLS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.07;
+    controls.minDistance = 5; controls.maxDistance = 22;
+    controls.maxPolarAngle = Math.PI * 0.85; controls.minPolarAngle = 0.10;
+    controls.target.set(0, 0.3, 0); controls.enablePan = false;
+    controls.zoomSpeed = 1.2; controls.rotateSpeed = 1.0;
+    controls.update();
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       MAIN LOOP
+       ═══════════════════════════════════════════════════════════════════════════ */
+    let __needsRender = true;
+    let __lastFrameTime = 0;
+    let __frameCount = 0;
+    function requestRender() { __needsRender = true; }
+    controls.addEventListener('change', requestRender);
+
+    renderer.setAnimationLoop((time) => {
+      const t = time * 0.001;
+      const dt = __lastFrameTime === 0 ? 0.016 : Math.min(t - __lastFrameTime, 0.1);
+      __lastFrameTime = t;
+      const fibPulse = FIB_W[__frameCount % FIB_W.length] * FIB.length;
+      state.firePhase += dt * (0.9 + fibPulse * 0.3);
+      fireMat.uniforms.uTime.value = state.firePhase;
+      fireMat2.uniforms.uTime.value = state.firePhase * INV_PHI;
+      const pulse1 = Math.sin(t * PHI) * 0.5 + 0.5;
+      const pulse2 = Math.cos(t * PHI * PHI * 0.6) * 0.5 + 0.5;
+      fireMat.uniforms.uIntensity.value = 1.0 + 0.25 * pulse1;
+      fireMat2.uniforms.uIntensity.value = 0.75 + 0.20 * pulse2;
+      fireLight.intensity = 2.2 + 0.8 * pulse1;
+      flameLight.intensity = 1.4 + 0.5 * pulse2;
+      fireMesh.rotation.y = Math.sin(t * 0.15) * 0.05;
+      fireMesh2.rotation.y = Math.cos(t * 0.12) * 0.08;
+      __frameCount++;
+      if (controls.enableDamping) controls.update();
+      /* El fuego siempre anima → siempre render */
+      renderer.render(scene, camera);
+      __needsRender = false;
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RENDERERS EDA
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function renderIngredients3D() {
+      drawFillingLayer(fillingCtx, 512, state.ingredients);
+      rebuildIngredientBlobs();
+      requestRender();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       COCCIÓN
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function animateCooking() {
+      regenerateCookTexture(state.charSeed);
+      Object.values(blobInstances).forEach(inst => {
+        inst.material.depthWrite = false;
+        inst.castShadow = false;
+      });
+      const t0 = performance.now();
+      const duration = 2600;
+      function step(now) {
+        if (!state.cooked) return;
+        const t = Math.min(1, (now - t0) / duration);
+        const e = 1 - Math.pow(1 - t, 3);
+        const blobOpacity = Math.max(0, 1 - e * 1.8);
+        topMasaMat.opacity = Math.min(1, e * 1.4);
+        fillingMat.opacity = Math.max(0, 1 - e * 1.6);
+        fillingMesh.visible = fillingMat.opacity > 0.001;
+        Object.values(blobInstances).forEach(inst => {
+          inst.material.opacity = blobOpacity;
+          inst.scale.y = Math.max(0.01, 1 - e * 0.65);
+          inst.visible = blobOpacity > 0.001;
+        });
+        cookOverlayMat.opacity = e * 0.85;
+        activeMasaMat.color.setHSL(0.1, 0.3 - e * 0.15, 0.85 - e * 0.28);
+        pupusaWobbleGroup.scale.y = 1 - Math.sin(e * Math.PI) * 0.03;
+        requestRender();
+        if (t < 1) requestAnimationFrame(step);
+        else {
+          pupusaWobbleGroup.scale.y = 1;
+          fillingMesh.visible = false;
+          Object.values(blobInstances).forEach(inst => {
+            inst.material.opacity = 0;
+            inst.visible = false;
+          });
+          stateEl.textContent = 'lista ✓';
+          updateHint();
+          updateUI();
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RAYCASTING — ambos targets: comal y plato
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    function getCanvasRect() { return canvas.getBoundingClientRect(); }
+    function isOverStage(cx, cy) {
+      const r = getCanvasRect();
+      return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom;
+    }
+    /** Devuelve { point, target } donde target es 'comal' o 'plate' según el mesh impactado */
+    function worldFromScreen(cx, cy) {
+      const r = getCanvasRect();
+      pointer.x = ((cx - r.left) / r.width) * 2 - 1;
+      pointer.y = -((cy - r.top) / r.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects([comalMesh, plateSurfaceMesh], false);
+      if (hits.length === 0) return null;
+      const hit = hits[0];
+      return { point: hit.point, target: hit.object === comalMesh ? 'comal' : 'plate' };
+    }
+    function pupusaLocal(worldPoint) {
+      const local = worldPoint.clone().sub(comalGroup.position);
+      const baseScale = ProductCatalog.getSize(state.sizeId).scale;
+      const worldR = PUPUSA_RADIUS * baseScale;
+      return {
+        x: ((local.x / worldR) * 0.5 + 0.5) * 400,
+        y: ((local.z / worldR) * 0.5 + 0.5) * 400
+      };
+    }
+    function plateLocal(worldPoint) {
+      const local = worldPoint.clone().sub(plateGroup.position);
+      const effR = PLATE_RADIUS * 0.82;
+      return {
+        x: (local.x / effR) * 200 + 200,
+        y: (local.z / effR) * 200 + 200
+      };
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       DRAG & DROP
+       ═══════════════════════════════════════════════════════════════════════════ */
+    let drag = null;
+    function onPointerDown(e) {
+      if (drag) return;
+      const t = e.target.closest('.ingredient');
+      if (!t || t.disabled) return;
+      e.preventDefault();
+      const kind = t.dataset.kind, type = t.dataset.type;
+      if (kind === 'ingredient' && state.cooked) return;
+      const d = kind === 'ingredient' ? ING[type] : ACC[type];
+      if (!d) return;
+      const g = document.createElement('div');
+      g.className = 'ghost';
+      g.innerHTML = d.icon;
+      drag = { kind, type, ghost: g };
+      document.body.appendChild(g);
+      document.body.classList.add('dragging');
+      moveGhost(e.clientX, e.clientY);
+      hint.classList.add('hide');
+    }
+    function moveGhost(x, y) {
+      if (drag) { drag.ghost.style.left = x + 'px'; drag.ghost.style.top = y + 'px'; }
+    }
+    function onPointerMove(e) {
+      if (!drag) return;
+      moveGhost(e.clientX, e.clientY);
+    }
+    function onPointerUp(e) {
+      if (!drag) return;
+      if (isOverStage(e.clientX, e.clientY)) {
+        const hit = worldFromScreen(e.clientX, e.clientY);
+        if (hit) {
+          if (drag.kind === 'ingredient' && hit.target === 'comal') {
+            const pt = pupusaLocal(hit.point);
+            addIngredient(drag.type, pt.x, pt.y);
+          } else if (drag.kind === 'accompaniment' && hit.target === 'plate') {
+            const pt = plateLocal(hit.point);
+            addAccompaniment(drag.type, pt.x, pt.y);
+          }
+        }
+      }
+      drag.ghost.remove();
+      drag = null;
+      document.body.classList.remove('dragging');
+    }
+    function onPointerCancel() {
+      if (drag) { drag.ghost.remove(); drag = null; }
+      document.body.classList.remove('dragging');
+    }
+    rack.addEventListener('pointerdown', onPointerDown);
+    plateRack.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerCancel);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       LÓGICA DE NEGOCIO
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function addIngredient(type, x, y) {
+      if (state.cooked || !ING[type]) return;
+      const dx = x - 200, dy = y - 200;
+      const dist = Math.hypot(dx, dy);
+      const maxR = 400 * 0.42 / 2;
+      if (dist > maxR) {
+        const k = maxR / dist;
+        x = 200 + dx * k; y = 200 + dy * k;
+      }
+      state.ingredients.push({ type, x, y, seed: Math.random() * 100 });
+      state.recipeMask |= ING[type].bit;
+      renderIngredients3D();
+      updateUI();
+      wobble();
+      eventBus.emit('ingredient:added', { type, x, y });
+    }
+    function addAccompaniment(type, x, y) {
+      if (!ACC[type]) return;
+      const dx = x - 200, dy = y - 200;
+      const dist = Math.hypot(dx, dy);
+      const maxR = 380;
+      if (dist > maxR) {
+        const k = maxR / dist;
+        x = 200 + dx * k; y = 200 + dy * k;
+      }
+      state.accompaniments.push({ type, x, y, seed: Math.random() * 100 });
+      renderAccompaniments3D();
+      updateUI();
+      eventBus.emit('accompaniment:added', { type, x, y });
+    }
+    function wobble() {
+      gsap.fromTo(pupusaWobbleGroup.scale,
+        { x: 1, y: 1, z: 1 },
+        {
+          x: 1.02, y: 0.96, z: 1.02, duration: 0.16, yoyo: true, repeat: 1,
+          ease: 'power2.inOut', onUpdate: requestRender,
+          onComplete: () => { pupusaWobbleGroup.scale.set(1, 1, 1); requestRender(); }
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       PRICING HELPERS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function computeServedTotal() {
+      return state.served.reduce((sum, p) => {
+        return sum + ProductCatalog.unitPrice(p.sizeId, p.ingredients.length);
+      }, 0);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       UI UPDATE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function updateHint() {
+      if (state.cooked && state.ingredients.length > 0) {
+        hint.textContent = `Pulsa "Servir al plato" (${state.quantity} pupusa${state.quantity > 1 ? 's' : ''})`;
+      } else if (state.ingredients.length > 0) {
+        hint.textContent = 'Pulsa "Cocinar" para cerrar el relleno';
+      } else if (state.served.length > 0) {
+        hint.textContent = 'Añade acompañamientos al plato o completa el pedido';
+      } else {
+        hint.textContent = 'Arrastra ingredientes al comal, cocínalos y sírvelos al plato';
+      }
+      hint.classList.remove('hide');
+    }
+
+    function updateUI() {
+      const c = {}, ac = {};
+      state.ingredients.forEach(i => c[i.type] = (c[i.type] || 0) + 1);
+      Object.keys(ING).forEach(k => {
+        const e = rack.querySelector(`[data-type="${k}"] .count`);
+        if (!e) return;
+        const n = c[k] || 0;
+        e.textContent = n;
+        e.classList.toggle('on', n > 0);
+      });
+      state.accompaniments.forEach(a => ac[a.type] = (ac[a.type] || 0) + 1);
+      Object.keys(ACC).forEach(k => {
+        const e = plateRack.querySelector(`[data-type="${k}"] .count`);
+        if (!e) return;
+        const n = ac[k] || 0;
+        e.textContent = n;
+        e.classList.toggle('on', n > 0);
+      });
+      countEl.textContent = state.ingredients.length;
+      servedCount.textContent = state.served.length;
+
+      /* Badges */
+      const nIng = state.ingredients.length;
+      const nAcc = state.accompaniments.length;
+      const nServed = state.served.length;
+      badgeCustomize.textContent = nIng;
+      badgeCustomize.classList.toggle('empty', nIng === 0);
+      badgeAcc.textContent = nAcc;
+      badgeAcc.classList.toggle('empty', nAcc === 0);
+      badgeOrder.textContent = nServed;
+      badgeOrder.classList.toggle('empty', nServed === 0);
+
+      /* Botones */
+      cookBtn.disabled = state.cooked || state.ingredients.length === 0;
+      serveBtn.disabled = !state.cooked;
+      clearComalBtn.disabled = state.ingredients.length === 0 && !state.cooked;
+      completeBtn.disabled = state.served.length === 0;
+
+      renderOrderSummary();
+      updateHint();
+    }
+
+    function renderOrderSummary() {
+      if (state.served.length === 0 && state.accompaniments.length === 0) {
+        orderSummaryListEl.innerHTML = '<div class="order-summary-empty">Aún no hay pupusas en el plato</div>';
+        orderSummaryTotalEl.textContent = '$0.00';
+        return;
+      }
+
+      const groups = new Map();
+      state.served.forEach(p => {
+        const ingTypes = [...new Set(p.ingredients.map(i => i.type))].sort();
+        const key = `${p.sizeId}::${ingTypes.join(',')}`;
+        if (!groups.has(key)) {
+          groups.set(key, { sizeId: p.sizeId, ingTypes, ingCount: p.ingredients.length, count: 0 });
+        }
+        groups.get(key).count++;
+      });
+
+      let html = '';
+      let grand = 0;
+      groups.forEach(g => {
+        const size = ProductCatalog.getSize(g.sizeId);
+        const unit = ProductCatalog.unitPrice(g.sizeId, g.ingCount);
+        const lineTotal = unit * g.count;
+        grand += lineTotal;
+        const ingNames = g.ingTypes.length === 0
+          ? 'Sin relleno'
+          : g.ingTypes.map(t => ING[t]?.name || t).join(' + ');
+        html += `<div class="order-summary-row">
+      <div class="osr-left">
+        <strong>${g.count}× ${size.label}</strong>
+        <span>${ingNames}</span>
+      </div>
+      <div class="osr-right">$${lineTotal.toFixed(2)}</div>
+    </div>`;
+      });
+
+      if (state.accompaniments.length > 0) {
+        const accNames = [...new Set(state.accompaniments.map(a => a.type))]
+          .map(t => ACC[t]?.name).filter(Boolean);
+        html += `<div class="order-summary-row osr-free">
+      <div class="osr-left"><strong>Extras</strong><span>${accNames.join(', ')}</span></div>
+      <div class="osr-right">Gratis</div>
+    </div>`;
+      }
+
+      orderSummaryListEl.innerHTML = html;
+      orderSummaryTotalEl.textContent = `$${grand.toFixed(2)}`;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       RENDER DE PUPUSAS SERVIDAS
+       ═══════════════════════════════════════════════════════════════════════════ */
+    const tagSpriteCache = new Map();
+    function makePupusaTagSprite(ingredients) {
+      const key = ingredients.map(i => i.type).sort().join(',') || 'empty';
+      if (tagSpriteCache.has(key)) {
+        const cached = tagSpriteCache.get(key);
+        /* Nueva instancia que comparte material/textura — no se dispone */
+        const sprite = new THREE.Sprite(cached.material);
+        sprite.scale.set(2.2, 0.55, 1);
+        sprite.renderOrder = 999;
+        return sprite;
+      }
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = 'rgba(20, 12, 6, 0.88)';
+      ctx.strokeStyle = 'rgba(232, 168, 62, 0.75)';
+      ctx.lineWidth = 5;
+      const r = 22, w = 504, h = 118;
+      ctx.beginPath();
+      ctx.moveTo(r, 5); ctx.lineTo(5 + w - r, 5);
+      ctx.quadraticCurveTo(5 + w, 5, 5 + w, 5 + r);
+      ctx.lineTo(5 + w, 5 + h - r);
+      ctx.quadraticCurveTo(5 + w, 5 + h, 5 + w - r, 5 + h);
+      ctx.lineTo(5 + r, 5 + h);
+      ctx.quadraticCurveTo(5, 5 + h, 5, 5 + h - r);
+      ctx.lineTo(5, 5 + r);
+      ctx.quadraticCurveTo(5, 5, 5 + r, 5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      const names = ingredients.map(i => ING[i.type]?.name).filter(Boolean);
+      const text = names.length > 0 ? names.join(' · ') : 'Sin relleno';
+      ctx.font = 'bold 42px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillStyle = '#f0e2c8';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const truncated = text.length > 22 ? text.slice(0, 20) + '…' : text;
+      ctx.fillText(truncated, 256, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+      tagSpriteCache.set(key, { material: mat, texture: tex });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(2.2, 0.55, 1);
+      sprite.renderOrder = 999;
+      return sprite;
+    }
+
+    /** Limpia el grupo de pupusas servidas, disponiendo geometrías propias,
+        materiales propios (filling) y texturas CanvasTexture únicas */
+    function clearServedPupusasGroup() {
+      while (servedPupusasGroup.children.length > 0) {
+        const c = servedPupusasGroup.children[0];
+        servedPupusasGroup.remove(c);
+        c.traverse(o => {
+          if (o.geometry && o.geometry !== pupusaGeo && o.geometry !== plateTopGeo
+            && o.geometry !== plateCutGeo && o.geometry !== plateCharGeo) {
+            o.geometry.dispose();
+          }
+        });
+        if (c.userData.ownedTextures) {
+          c.userData.ownedTextures.forEach(t => t.dispose());
+          c.userData.ownedTextures = null;
+        }
+        if (c.userData.ownedMaterials) {
+          c.userData.ownedMaterials.forEach(m => m.dispose());
+          c.userData.ownedMaterials = null;
+        }
+      }
+    }
+
+    function getPlateLayout(n) {
+      if (n === 0) return [];
+      if (n === 1) return [{ x: 200, y: 200, scale: 0.75, rot: -5 }];
+      if (n === 2) return [
+        { x: 140, y: 220, scale: 0.65, rot: -8 },
+        { x: 260, y: 180, scale: 0.65, rot: 12 }
+      ];
+      if (n === 3) return [
+        { x: 200, y: 135, scale: 0.55, rot: -4 },
+        { x: 145, y: 260, scale: 0.55, rot: 8 },
+        { x: 255, y: 260, scale: 0.55, rot: -10 }
+      ];
+      if (n === 4) return [
+        { x: 145, y: 155, scale: 0.5, rot: -6 },
+        { x: 255, y: 155, scale: 0.5, rot: 6 },
+        { x: 145, y: 255, scale: 0.5, rot: 10 },
+        { x: 255, y: 255, scale: 0.5, rot: -10 }
+      ];
+      const baseScale = Math.max(0.30, 0.48 - (n - 4) * 0.015);
+      return Array.from({ length: n }, (_, i) => {
+        const angle = i * GOLDEN_ANGLE - Math.PI / 2;
+        const t = (i + 0.5) / n;
+        const r = 30 + Math.sqrt(t) * 105;
+        return {
+          x: 200 + Math.cos(angle) * r,
+          y: 200 + Math.sin(angle) * r,
+          scale: baseScale,
+          rot: (hash(i, 7) - .5) * 30
+        };
+      });
+    }
+
+    function renderPlate3D() {
+      clearServedPupusasGroup();
+      const n = state.served.length;
+      if (n === 0) { requestRender(); return; }
+      const layout = getPlateLayout(n);
+      state.served.forEach((p, i) => {
+        const L = layout[i];
+        const g = new THREE.Group();
+        const ownedTextures = [];
+        const ownedMaterials = [];
+        /* Convertir coords 0-400 a mundo (relativo al plato) */
+        const wx = (L.x - 200) / 200 * PLATE_RADIUS * 0.82;
+        const wz = (L.y - 200) / 200 * PLATE_RADIUS * 0.82;
+
+        const body = new THREE.Mesh(pupusaGeo, servedMasaMat);
+        body.position.y = PUPUSA_HEIGHT / 2;
+        body.castShadow = true; body.receiveShadow = true;
+        g.add(body);
+
+        const top = new THREE.Mesh(plateTopGeo, servedTopMat);
+        top.rotation.x = -Math.PI / 2;
+        top.position.y = PUPUSA_HEIGHT + 0.008;
+        g.add(top);
+
+        /* Marca de comal — material compartido (servedCharMat) */
+        const char = new THREE.Mesh(plateCharGeo, servedCharMat);
+        char.rotation.x = -Math.PI / 2;
+        char.position.y = PUPUSA_HEIGHT + 0.012;
+        g.add(char);
+
+        const tag = makePupusaTagSprite(p.ingredients);
+        tag.position.set(0, PUPUSA_HEIGHT + 0.7, 0);
+        g.add(tag);
+
+        g.userData.ownedTextures = ownedTextures;
+        g.userData.ownedMaterials = ownedMaterials;
+
+        g.position.set(wx, 0, wz);
+        g.scale.setScalar(L.scale);
+        g.rotation.y = L.rot * Math.PI / 180;
+        servedPupusasGroup.add(g);
+      });
+      requestRender();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ANIMACIONES DE CÁMARA
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function animateCameraTo(position, target, duration = 1.0) {
+      const camPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+      const camTarget = { x: controls.target.x, y: controls.target.y, z: controls.target.z };
+      gsap.to(camPos, {
+        x: position.x, y: position.y, z: position.z,
+        duration, ease: 'power2.inOut',
+        onUpdate: () => { camera.position.set(camPos.x, camPos.y, camPos.z); }
+      });
+      gsap.to(camTarget, {
+        x: target.x, y: target.y, z: target.z,
+        duration, ease: 'power2.inOut',
+        onUpdate: () => { controls.target.set(camTarget.x, camTarget.y, camTarget.z); controls.update(); }
+      });
+    }
+    function setFocusedView(name) {
+      state.focusedView = name;
+      document.querySelectorAll('.view-controls button').forEach(b => b.classList.remove('active'));
+      const btn = el(`view${name.charAt(0).toUpperCase() + name.slice(1)}`);
+      if (btn) btn.classList.add('active');
+      if (name === 'comal') {
+        animateCameraTo(new THREE.Vector3(COMAL_POS.x, 4.5, 5), new THREE.Vector3(COMAL_POS.x, 0.3, 0), 0.9);
+      } else if (name === 'plate') {
+        animateCameraTo(new THREE.Vector3(PLATE_POS.x, 4.5, 5), new THREE.Vector3(PLATE_POS.x, 0.3, 0), 0.9);
+      } else if (name === 'general') {
+        animateCameraTo(new THREE.Vector3(0, 8, 11), new THREE.Vector3(0, 0.3, 0), 0.9);
+      } else if (name === 'top') {
+        animateCameraTo(new THREE.Vector3(0, 13, 0.01), new THREE.Vector3(0, 0.3, 0), 0.9);
+      }
+    }
+    el('viewComal').addEventListener('click', () => setFocusedView('comal'));
+    el('viewPlate').addEventListener('click', () => setFocusedView('plate'));
+    el('viewGeneral').addEventListener('click', () => setFocusedView('general'));
+    el('viewTop').addEventListener('click', () => setFocusedView('top'));
+
+    function zoomCamera(factor) {
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target);
+      const dist = dir.length();
+      const newDist = THREE.MathUtils.clamp(dist * factor, controls.minDistance, controls.maxDistance);
+      dir.normalize().multiplyScalar(newDist);
+      const newPos = new THREE.Vector3().addVectors(controls.target, dir);
+      animateCameraTo(newPos, controls.target.clone(), 0.4);
+    }
+    el('zoomIn').addEventListener('click', () => zoomCamera(0.75));
+    el('zoomOut').addEventListener('click', () => zoomCamera(1.33));
+    el('zoomReset').addEventListener('click', () => setFocusedView('general'));
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       E-COMMERCE
+       ═══════════════════════════════════════════════════════════════════════════ */
+    function applySize(sizeId) {
+      state.sizeId = sizeId;
+      const scale = ProductCatalog.getSize(sizeId).scale;
+      pupusaGroup.scale.set(scale, scale, scale);
+      sizeRow.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === sizeId));
+      eventBus.emit('size:changed', sizeId);
+    }
+    sizeRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('.size-btn');
+      if (!btn) return;
+      applySize(btn.dataset.size);
+    });
+    function setQuantity(n) {
+      n = Math.max(1, Math.min(20, Math.floor(n) || 1));
+      state.quantity = n;
+      qtyInput.value = n;
+      updateHint();
+      eventBus.emit('quantity:changed', n);
+    }
+    qtyInput.addEventListener('input', () => setQuantity(parseInt(qtyInput.value, 10)));
+    qtyInput.addEventListener('blur', () => setQuantity(state.quantity));
+    qtyMinus.addEventListener('click', () => setQuantity(state.quantity - 1));
+    qtyPlus.addEventListener('click', () => setQuantity(state.quantity + 1));
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BOTONES
+       ═══════════════════════════════════════════════════════════════════════════ */
+    cookBtn.addEventListener('click', () => {
+      if (state.cooked || state.ingredients.length === 0) return;
+      state.cooked = true;
+      state.charSeed = Math.random() * 100;
+      cookBtn.disabled = true;
+      cookBtn.classList.add('cooking');
+      stateEl.textContent = 'cocinando…';
+      animateCooking();
+    });
+
+    serveBtn.addEventListener('click', () => {
+      if (!state.cooked) return;
+      const qty = state.quantity;
+      const sourceIngredients = state.ingredients.map(i => ({ ...i }));
+      const now = Date.now();
+      for (let i = 0; i < qty; i++) {
+        state.served.push({
+          ingredients: sourceIngredients.map(ing => ({ ...ing })),
+          cookSeed: state.charSeed,
+          recipeMask: state.recipeMask,
+          sizeId: state.sizeId,
+          _id: `p_${now.toString(36)}_${i}_${Math.random().toString(36).slice(2, 6)}`
+        });
+      }
+      resetComal();
+      wobble();
+      renderPlate3D();
+      updateUI();
+      eventBus.emit('pupusa:served', { count: state.served.length, added: qty });
+    });
+
+    function resetComal() {
+      state.ingredients = [];
+      state.cooked = false;
+      state.recipeMask = 0;
+      state.charSeed = 0;
+      cookOverlayMat.opacity = 0;
+      topMasaMat.opacity = 0;
+      fillingMat.opacity = 1.0;
+      fillingMesh.visible = true;
+      activeMasaMat.color.setHSL(0.1, 0.3, 0.85);
+      pupusaWobbleGroup.scale.set(1, 1, 1);
+      Object.values(blobInstances).forEach(inst => {
+        inst.count = 0;
+        inst.visible = true;
+        inst.scale.y = 1;
+        inst.castShadow = true;
+        inst.material.opacity = 1;
+        inst.material.depthWrite = true;
+      });
+      fillingCtx.clearRect(0, 0, 512, 512);
+      fillingTexture.needsUpdate = true;
+      stateEl.textContent = 'crudo';
+      cookBtn.classList.remove('cooking');
+      renderIngredients3D();
+      updateUI();
+      requestRender();
+    }
+
+    clearComalBtn.addEventListener('click', () => {
+      resetComal();
+      updateUI();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      state.served = [];
+      state.accompaniments = [];
+      state.quantity = 1;
+      qtyInput.value = 1;
+      applySize('medium');
+      order.clear();
+      clearServedPupusasGroup();
+      while (accompanimentGroup.children.length > 0) {
+        const c = accompanimentGroup.children[0];
+        accompanimentGroup.remove(c);
+        c.traverse(o => {
+          if (o.geometry && !ACC_GEOS_SET.has(o.geometry)) o.geometry.dispose();
+        });
+      }
+      resetComal();
+      updateUI();
+      setFocusedView('general');
+    });
+
+    function showToast(title, sub, emoji = '🎉') {
+      toast.querySelector('.emoji').textContent = emoji;
+      toast.querySelector('.title').textContent = title;
+      toastSub.textContent = sub;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 4200);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       Inicializar el sistema de pagos pasándole las herramientas del entorno 3D
+       ═══════════════════════════════════════════════════════════════════════════ */
+    initPagos(eventBus, {
+      completeBtn,
+      computeServedTotal,
+      state
+    });
+
+    // Escuchar el evento de éxito para registrar el pedido y limpiar el comal (Observer)
+    eventBus.on('pago:exitoso', ({ total }) => {
+      const totalPupusas = state.served.length;
+
+      state.served.forEach(p => {
+        order.add(new OrderItem(p.sizeId, p.ingredients.map(i => i.type)));
+      });
+
+      showToast(
+        '¡Pago Aprobado!',
+        `${totalPupusas} pupusas ordenadas · $${total.toFixed(2)} pagados`,
+        '💳'
+      );
+
+      // Limpiar platos y UI
+      order.clear();
+      state.served = [];
+      state.accompaniments = [];
+      state.quantity = 1;
+      qtyInput.value = 1;
+      clearServedPupusasGroup();
+      while (accompanimentGroup.children.length > 0) {
+        const c = accompanimentGroup.children[0];
+        accompanimentGroup.remove(c);
+        c.traverse(o => {
+          if (o.geometry && !ACC_GEOS_SET.has(o.geometry)) o.geometry.dispose();
+        });
+      }
+      resetComal();
+      updateUI();
+      setFocusedView('general');
+    });
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       INIT UI
+       ═══════════════════════════════════════════════════════════════════════════ */
+    Object.keys(ING).forEach(k => {
+      const d = ING[k];
+      const b = document.createElement('button');
+      b.className = 'ingredient';
+      b.dataset.type = k; b.dataset.kind = 'ingredient';
+      b.innerHTML = `<div class="ico">${d.icon}</div><span class="name">${d.name}</span><span class="price">$${d.price.toFixed(2)}</span><span class="count">0</span>`;
+      rack.appendChild(b);
+    });
+    Object.keys(ACC).forEach(k => {
+      const d = ACC[k];
+      const b = document.createElement('button');
+      b.className = 'ingredient';
+      b.dataset.type = k; b.dataset.kind = 'accompaniment';
+      b.innerHTML = `<div class="ico">${d.icon}</div><span class="name">${d.name}</span><span class="count">0</span>`;
+      plateRack.appendChild(b);
+    });
+
+    function onResize() {
+      const stage = canvas.parentElement;
+      const rect = stage.getBoundingClientRect();
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(rect.width, rect.height, false);
+      requestRender();
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+    applySize('medium');
+    updateUI();
+    requestRender();
+    setTimeout(() => wobble(), 500);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       CLEANUP
+       ═══════════════════════════════════════════════════════════════════════════ */
+    window.addEventListener('beforeunload', () => {
+      pmremGenerator.dispose();
+      envTexture.dispose();
+      comalGeo.dispose(); comalMat.dispose();
+      rimGeo.dispose(); rimMat.dispose();
+      fireGeo.dispose(); fireGeo2.dispose();
+      fireMat.dispose(); fireMat2.dispose();
+      pupusaGeo.dispose(); activeMasaMat.dispose(); servedMasaMat.dispose();
+      servedTopMat.dispose(); servedCharMat.dispose();
+      fillingGeo.dispose(); fillingMat.dispose(); fillingTexture.dispose();
+      topMasaGeo.dispose(); topMasaMat.dispose();
+      cookOverlayGeo.dispose(); cookOverlayMat.dispose(); cookTexture.dispose();
+      plateTopGeo.dispose(); plateCutGeo.dispose(); plateCharGeo.dispose();
+      masaTex.dispose();
+      Object.values(blobInstances).forEach(inst => {
+        inst.geometry.dispose();
+        inst.material.dispose();
+        inst.dispose();
+      });
+      Object.values(accGeos).forEach(g => g.dispose());
+      Object.values(accMatCache).forEach(m => m.dispose());
+      tagSpriteCache.forEach(entry => {
+        entry.material.dispose();
+        entry.texture.dispose();
+      });
+      textureCache.forEach(t => t.dispose());
+      renderer.dispose();
+    });
+  </script>
+</body>
+
+</html>
